@@ -1,0 +1,13 @@
+{
+  "global_ignores": {
+    "resource_types": [],
+    "attributes": ["tags", "desired_capacity", "lifecycle"]
+  },
+  "severity_classification": {
+    "aws_iam_policy": "CRITICAL",
+    "aws_security_group_rule": "CRITICAL",
+    "aws_rds_cluster": "HIGH",
+    "aws_route53_record": "MEDIUM"
+  },
+  "layer_ignores": {}
+}
