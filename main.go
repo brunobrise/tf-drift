@@ -23,6 +23,7 @@ func main() {
 	rulesFlag := flag.String("rules", "rules.json", "Path to the rules configuration file")
 	nonInteractiveFlag := flag.Bool("non-interactive", false, "Force disable TUI")
 	profileOverrideFlag := flag.String("profile-override", "", "Override AWS provider profile and comment out assume_role blocks")
+	localProfileFlag := flag.Bool("local-profile", false, "Comment out assume_role blocks and uncomment existing profiles in provider configs")
 
 	flag.Parse()
 
@@ -57,7 +58,7 @@ func main() {
 	useTUI := !*nonInteractiveFlag && isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
 
 	resultsChan := make(chan ScanResult, len(layers))
-	ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, resultsChan)
+	ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, *localProfileFlag, resultsChan)
 
 	if !useTUI {
 		// Non-interactive Mode (standard stdout report, good for CI/CD)
