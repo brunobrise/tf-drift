@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -97,7 +98,7 @@ func parsePlanJSON(data []byte) ([]DriftChange, error) {
 
 // RunPlan executes the terraform plan command on the target layer directory.
 // It returns a list of detected drift changes, or an error.
-func RunPlan(layerDir string, rules RulesConfig, lockState bool) ([]DriftChange, error) {
+func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool) ([]DriftChange, error) {
 	// Set plugin cache dir if not set
 	if os.Getenv("TF_PLUGIN_CACHE_DIR") == "" {
 		homeDir, err := os.UserHomeDir()
@@ -111,7 +112,7 @@ func RunPlan(layerDir string, rules RulesConfig, lockState bool) ([]DriftChange,
 	// 1. Initialize if needed
 	tfDir := filepath.Join(layerDir, ".terraform")
 	if _, err := os.Stat(tfDir); os.IsNotExist(err) {
-		cmd := exec.Command("terraform", "init", "-input=false")
+		cmd := exec.CommandContext(ctx, "terraform", "init", "-input=false")
 		cmd.Dir = layerDir
 		// Capture output to prevent corrupting interactive TUI
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -129,7 +130,7 @@ func RunPlan(layerDir string, rules RulesConfig, lockState bool) ([]DriftChange,
 		args = append(args, "-lock=false")
 	}
 
-	cmdPlan := exec.Command("terraform", args...)
+	cmdPlan := exec.CommandContext(ctx, "terraform", args...)
 	cmdPlan.Dir = layerDir
 	planOutput, err := cmdPlan.CombinedOutput()
 
@@ -148,7 +149,7 @@ func RunPlan(layerDir string, rules RulesConfig, lockState bool) ([]DriftChange,
 		return nil, nil
 	case 2:
 		// Drift detected. Run terraform show -json to extract diff
-		cmdShow := exec.Command("terraform", "show", "-json", planFile)
+		cmdShow := exec.CommandContext(ctx, "terraform", "show", "-json", planFile)
 		cmdShow.Dir = layerDir
 		showOutput, err := cmdShow.CombinedOutput()
 		if err != nil {
