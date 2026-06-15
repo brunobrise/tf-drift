@@ -6,7 +6,7 @@ BINARY_NAME=tf-drift
 all: test build
 
 build:
-	go build -o $(BINARY_NAME)
+	go build -o $(BINARY_NAME) ./cmd/tf-drift
 
 install:
 	go install

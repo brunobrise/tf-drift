@@ -1,4 +1,4 @@
-package main
+package drift
 
 type Ignores struct {
 	ResourceTypes []string `json:"resource_types"`

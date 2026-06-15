@@ -1,4 +1,4 @@
-package main
+package drift
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type PlanJSON struct {
@@ -100,6 +101,21 @@ func parsePlanJSON(data []byte) ([]DriftChange, error) {
 	return changes, nil
 }
 
+var (
+	initCacheOnce sync.Once
+)
+
+func setupPluginCache() {
+	if os.Getenv("TF_PLUGIN_CACHE_DIR") == "" {
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			cacheDir := filepath.Join(homeDir, ".terraform.d", "plugin-cache")
+			_ = os.MkdirAll(cacheDir, 0755)
+			os.Setenv("TF_PLUGIN_CACHE_DIR", cacheDir)
+		}
+	}
+}
+
 // RunPlan executes the terraform plan command on the target layer directory.
 // It returns a list of detected drift changes, or an error.
 func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool) ([]DriftChange, error) {
@@ -131,15 +147,8 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 		}
 	}
 
-	// Set plugin cache dir if not set
-	if os.Getenv("TF_PLUGIN_CACHE_DIR") == "" {
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			cacheDir := filepath.Join(homeDir, ".terraform.d", "plugin-cache")
-			_ = os.MkdirAll(cacheDir, 0755)
-			os.Setenv("TF_PLUGIN_CACHE_DIR", cacheDir)
-		}
-	}
+	// Set plugin cache dir once safely
+	initCacheOnce.Do(setupPluginCache)
 
 	// 1. Initialize if needed
 	tfDir := filepath.Join(layerDir, ".terraform")

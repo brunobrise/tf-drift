@@ -11,9 +11,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/brunobrise/tf-drift/internal/drift"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mattn/go-isatty"
 )
+
+var version = "dev"
 
 func main() {
 	dirFlag := flag.String("dir", ".", "Path to the target directory to scan")
@@ -26,11 +29,17 @@ func main() {
 	nonInteractiveFlag := flag.Bool("non-interactive", false, "Force disable TUI")
 	profileOverrideFlag := flag.String("profile-override", "", "Override AWS provider profile and comment out assume_role blocks")
 	localProfileFlag := flag.Bool("local-profile", false, "Comment out assume_role blocks and uncomment existing profiles in provider configs")
+	versionFlag := flag.Bool("version", false, "Print version and exit")
 
 	flag.Parse()
 
+	if *versionFlag {
+		fmt.Printf("tf-drift %s\n", version)
+		os.Exit(0)
+	}
+
 	// 1. Load Rules Config
-	var rules RulesConfig
+	var rules drift.RulesConfig
 	rulesPath := *rulesFlag
 	if rulesData, err := os.ReadFile(rulesPath); err == nil {
 		if err := json.Unmarshal(rulesData, &rules); err != nil {
@@ -40,13 +49,13 @@ func main() {
 
 	// 2. Discover and Filter Layers
 	baseDir := *dirFlag
-	allLayers, err := DiscoverLayers(baseDir)
+	allLayers, err := drift.DiscoverLayers(baseDir)
 	if err != nil {
 		fmt.Printf("Error discovering layers: %v\n", err)
 		os.Exit(1)
 	}
 
-	layers := FilterLayers(allLayers, *envFlag, *layerFlag)
+	layers := drift.FilterLayers(allLayers, *envFlag, *layerFlag)
 	if len(layers) == 0 {
 		fmt.Println("No Terraform configuration layers discovered.")
 		os.Exit(0)
@@ -73,17 +82,17 @@ func main() {
 		log.SetFlags(0)
 	}
 
-	resultsChan := make(chan ScanResult, len(layers))
-	ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, *localProfileFlag, resultsChan)
+	resultsChan := make(chan drift.ScanResult, len(layers))
+	drift.ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, *localProfileFlag, resultsChan)
 
 	if !useTUI {
 		// Non-interactive Mode (standard stdout report, good for CI/CD)
-		var results []ScanResult
+		var results []drift.ScanResult
 		for res := range resultsChan {
 			results = append(results, res)
 		}
 
-		PrintNonInteractiveReport(results, *formatFlag)
+		drift.PrintNonInteractiveReport(results, *formatFlag)
 
 		// Exit code logic for CI
 		hasErrors := false
@@ -106,7 +115,7 @@ func main() {
 	}
 
 	// TUI Mode
-	m := initialModel(layers, rules, *concurrencyFlag, *lockFlag)
+	m := drift.InitialModel(layers, rules, *concurrencyFlag, *lockFlag, baseDir)
 	p := tea.NewProgram(m)
 
 	// Goroutine to forward progress from workers channel to Bubble Tea program loop
@@ -119,7 +128,7 @@ func main() {
 				if !ok {
 					return
 				}
-				p.Send(LayerScanFinishedMsg{Result: res})
+				p.Send(drift.LayerScanFinishedMsg{Result: res})
 			}
 		}
 	}()
