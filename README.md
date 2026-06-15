@@ -16,13 +16,21 @@ It features a modern, interactive Terminal User Interface (TUI) built on Charm C
 
 ---
 
-## Installation
+## Installation & Building
 
-Ensure you have Go installed (>= 1.25). Clone the repository and compile the binary:
+Ensure you have Go installed (>= 1.25) and standard `make`. Clone the repository and use the provided `Makefile`:
 
 ```bash
 cd ~/Code/brunobrise/tf-drift
-go build -o tf-drift
+
+# Build the binary locally
+make build
+
+# Install the binary globally in $GOPATH/bin
+make install
+
+# Run the test suite
+make test
 ```
 
 ---
