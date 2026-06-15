@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"sync"
 )
 
@@ -10,10 +11,11 @@ type ScanResult struct {
 	Err    error
 }
 
-type RunnerFunc func(dir string, rules RulesConfig, lockState bool) ([]DriftChange, error)
+type RunnerFunc func(ctx context.Context, dir string, rules RulesConfig, lockState bool) ([]DriftChange, error)
 
 // ScanLayersWithRunner executes the worker pool using a custom runner (useful for testing).
 func ScanLayersWithRunner(
+	ctx context.Context,
 	layers []string,
 	rules RulesConfig,
 	concurrency int,
@@ -38,7 +40,7 @@ func ScanLayersWithRunner(
 		go func() {
 			defer wg.Done()
 			for path := range tasksChan {
-				drifts, err := runner(path, rules, lockState)
+				drifts, err := runner(ctx, path, rules, lockState)
 				resultsChan <- ScanResult{
 					Path:   path,
 					Drifts: drifts,
@@ -57,11 +59,12 @@ func ScanLayersWithRunner(
 
 // ScanLayers executes the worker pool using the native Terraform runner.
 func ScanLayers(
+	ctx context.Context,
 	layers []string,
 	rules RulesConfig,
 	concurrency int,
 	lockState bool,
 	resultsChan chan<- ScanResult,
 ) {
-	ScanLayersWithRunner(layers, rules, concurrency, lockState, resultsChan, RunPlan)
+	ScanLayersWithRunner(ctx, layers, rules, concurrency, lockState, resultsChan, RunPlan)
 }
