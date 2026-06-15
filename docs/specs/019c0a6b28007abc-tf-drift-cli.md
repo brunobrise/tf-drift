@@ -55,8 +55,7 @@ stop
 @endum
 ```
 
-### SVG Architecture Diagram
-Refer to [diagram.svg](diagram.svg) for a visual flow.
+![Architecture Diagram](diagram.svg)
 
 ## TUI Layout & Features
 * **Progress Bar:** Interactive indicator of processed layers vs total layers.
