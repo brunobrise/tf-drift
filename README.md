@@ -103,3 +103,12 @@ When run non-interactively (e.g., in GitHub Actions), the tool returns:
 - **`0`**: Clean (no configuration drift found).
 - **`1`**: Execution error (failed to run plan, syntax error, or missing credentials).
 - **`2`**: Drift detected (unignored configuration changes are present in real infrastructure).
+
+---
+
+## Logging & Debugging
+
+To prevent background logs and warnings (such as Terraform init/plan stdout/stderr output or provider override warning outputs) from corrupting the interactive terminal user interface, the tool isolates outputs:
+* **Interactive TUI Mode:** All logs, warnings, and error messages are redirected to a `tf-drift.log` file in your current working directory. You can tail this file (`tail -f tf-drift.log`) in a separate terminal pane to debug active scan issues.
+* **Non-Interactive Mode:** All logs are written directly to `os.Stderr` without timestamps for clean terminal output formatting.
+
