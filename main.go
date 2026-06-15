@@ -1,0 +1,113 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-isatty"
+)
+
+func main() {
+	dirFlag := flag.String("dir", ".", "Path to the target directory to scan")
+	envFlag := flag.String("env", "", "Filter layers by environment name")
+	layerFlag := flag.String("layer", "", "Filter layers by specific layer path")
+	concurrencyFlag := flag.Int("concurrency", 5, "Max parallel workers")
+	formatFlag := flag.String("format", "text", "Non-interactive output format (text|json|markdown|slack)")
+	lockFlag := flag.Bool("lock", false, "Enable state locking")
+	rulesFlag := flag.String("rules", "rules.json", "Path to the rules configuration file")
+	nonInteractiveFlag := flag.Bool("non-interactive", false, "Force disable TUI")
+
+	flag.Parse()
+
+	// 1. Load Rules Config
+	var rules RulesConfig
+	rulesPath := *rulesFlag
+	if rulesData, err := os.ReadFile(rulesPath); err == nil {
+		if err := json.Unmarshal(rulesData, &rules); err != nil {
+			fmt.Printf("Warning: Failed to parse rules config: %v. Using defaults.\n", err)
+		}
+	}
+
+	// 2. Discover and Filter Layers
+	baseDir := *dirFlag
+	allLayers, err := DiscoverLayers(baseDir)
+	if err != nil {
+		fmt.Printf("Error discovering layers: %v\n", err)
+		os.Exit(1)
+	}
+
+	layers := FilterLayers(allLayers, *envFlag, *layerFlag)
+	if len(layers) == 0 {
+		fmt.Println("No Terraform configuration layers discovered.")
+		os.Exit(0)
+	}
+
+	// 3. Signal handling context for clean termination
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// 4. Determine execution mode (TUI vs Non-Interactive)
+	useTUI := !*nonInteractiveFlag && isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
+
+	resultsChan := make(chan ScanResult, len(layers))
+	ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, resultsChan)
+
+	if !useTUI {
+		// Non-interactive Mode (standard stdout report, good for CI/CD)
+		var results []ScanResult
+		for res := range resultsChan {
+			results = append(results, res)
+		}
+
+		PrintNonInteractiveReport(results, *formatFlag)
+
+		// Exit code logic for CI
+		hasErrors := false
+		hasDrifts := false
+		for _, res := range results {
+			if res.Err != nil {
+				hasErrors = true
+			} else if len(res.Drifts) > 0 {
+				hasDrifts = true
+			}
+		}
+
+		if hasErrors {
+			os.Exit(1)
+		}
+		if hasDrifts {
+			os.Exit(2)
+		}
+		os.Exit(0)
+	}
+
+	// TUI Mode
+	m := initialModel(layers, rules, *concurrencyFlag, *lockFlag)
+	p := tea.NewProgram(m)
+
+	// Goroutine to forward progress from workers channel to Bubble Tea program loop
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case res, ok := <-resultsChan:
+				if !ok {
+					return
+				}
+				p.Send(LayerScanFinishedMsg{Result: res})
+			}
+		}
+	}()
+
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Error running TUI: %v\n", err)
+		os.Exit(1)
+	}
+}
