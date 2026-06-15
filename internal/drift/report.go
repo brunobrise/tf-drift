@@ -21,7 +21,7 @@ func formatMarkdown(results []ScanResult) string {
 	for _, res := range results {
 		if res.Err != nil {
 			errorLayersCount++
-			sb.WriteString(fmt.Sprintf("| `%s` | ❌ ERROR | %v |\n", res.Path, res.Err))
+			_, _ = fmt.Fprintf(&sb, "| `%s` | ❌ ERROR | %v |\n", res.Path, res.Err)
 		} else if len(res.Drifts) > 0 {
 			driftedLayersCount++
 			maxSev := "LOW"
@@ -34,23 +34,23 @@ func formatMarkdown(results []ScanResult) string {
 					maxSev = "MEDIUM"
 				}
 			}
-			sb.WriteString(fmt.Sprintf("| `%s` | 🔴 DRIFTED | %d changes (Max: %s) |\n", res.Path, len(res.Drifts), maxSev))
+			_, _ = fmt.Fprintf(&sb, "| `%s` | 🔴 DRIFTED | %d changes (Max: %s) |\n", res.Path, len(res.Drifts), maxSev)
 
 			// Add detailed list
-			detailSB.WriteString(fmt.Sprintf("### Layer `%s` Drift Details\n\n", res.Path))
+			_, _ = fmt.Fprintf(&detailSB, "### Layer `%s` Drift Details\n\n", res.Path)
 			for _, d := range res.Drifts {
-				detailSB.WriteString(fmt.Sprintf("* **%s** (%s) — Actions: %v\n", d.Address, d.Severity, d.Actions))
-				detailSB.WriteString(fmt.Sprintf("  * Changed attributes: `%s`\n", strings.Join(d.ChangedAttributes, "`, `")))
+				_, _ = fmt.Fprintf(&detailSB, "* **%s** (%s) — Actions: %v\n", d.Address, d.Severity, d.Actions)
+				_, _ = fmt.Fprintf(&detailSB, "  * Changed attributes: `%s`\n", strings.Join(d.ChangedAttributes, "`, `"))
 			}
 			detailSB.WriteString("\n")
 		} else {
-			sb.WriteString(fmt.Sprintf("| `%s` | 🟢 CLEAN | — |\n", res.Path))
+			_, _ = fmt.Fprintf(&sb, "| `%s` | 🟢 CLEAN | — |\n", res.Path)
 		}
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("**Summary:** %d layers scanned, %d drifted, %d errors.\n\n",
-		len(results), driftedLayersCount, errorLayersCount))
+	_, _ = fmt.Fprintf(&sb, "**Summary:** %d layers scanned, %d drifted, %d errors.\n\n",
+		len(results), driftedLayersCount, errorLayersCount)
 
 	if detailSB.Len() > 0 {
 		sb.WriteString("## Drift Details\n\n")
@@ -105,15 +105,15 @@ func formatSlack(results []ScanResult) string {
 	for _, res := range results {
 		if res.Err != nil {
 			errors++
-			sb.WriteString(fmt.Sprintf("• `%s`: :x: *ERROR* - %v\n", res.Path, res.Err))
+			_, _ = fmt.Fprintf(&sb, "• `%s`: :x: *ERROR* - %v\n", res.Path, res.Err)
 		} else if len(res.Drifts) > 0 {
 			drifted++
-			sb.WriteString(fmt.Sprintf("• `%s`: :red_circle: *DRIFTED* (%d changes)\n", res.Path, len(res.Drifts)))
+			_, _ = fmt.Fprintf(&sb, "• `%s`: :red_circle: *DRIFTED* (%d changes)\n", res.Path, len(res.Drifts))
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("\n*Scan summary:* Scanned: %d | Drifted: %d | Errors: %d",
-		len(results), drifted, errors))
+	_, _ = fmt.Fprintf(&sb, "\n*Scan summary:* Scanned: %d | Drifted: %d | Errors: %d",
+		len(results), drifted, errors)
 
 	return sb.String()
 }
@@ -130,21 +130,21 @@ func formatText(results []ScanResult) string {
 	for _, res := range results {
 		if res.Err != nil {
 			errors++
-			sb.WriteString(fmt.Sprintf("[ERROR]   %s: %v\n", res.Path, res.Err))
+			_, _ = fmt.Fprintf(&sb, "[ERROR]   %s: %v\n", res.Path, res.Err)
 		} else if len(res.Drifts) > 0 {
 			drifted++
-			sb.WriteString(fmt.Sprintf("[DRIFTED] %s: %d changes detected\n", res.Path, len(res.Drifts)))
+			_, _ = fmt.Fprintf(&sb, "[DRIFTED] %s: %d changes detected\n", res.Path, len(res.Drifts))
 			for _, d := range res.Drifts {
-				sb.WriteString(fmt.Sprintf("  - %s (%s)\n", d.Address, d.Severity))
+				_, _ = fmt.Fprintf(&sb, "  - %s (%s)\n", d.Address, d.Severity)
 			}
 		} else {
-			sb.WriteString(fmt.Sprintf("[CLEAN]   %s\n", res.Path))
+			_, _ = fmt.Fprintf(&sb, "[CLEAN]   %s\n", res.Path)
 		}
 	}
 
 	sb.WriteString(strings.Repeat("-", 60) + "\n")
-	sb.WriteString(fmt.Sprintf("Total layers scanned: %d | Drifted: %d | Errors: %d\n",
-		len(results), drifted, errors))
+	_, _ = fmt.Fprintf(&sb, "Total layers scanned: %d | Drifted: %d | Errors: %d\n",
+		len(results), drifted, errors)
 
 	return sb.String()
 }

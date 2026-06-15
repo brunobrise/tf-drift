@@ -56,13 +56,13 @@ func TestFilterDrift(t *testing.T) {
 	}
 
 	// Case 1: Resource type ignored globally
-	ignored, sev := rules.EvaluateChange("aws/workload_api_dev/008_ssm_dev", "aws_autoscaling_group", []string{"tags"})
+	ignored, _ := rules.EvaluateChange("aws/workload_api_dev/008_ssm_dev", "aws_autoscaling_group", []string{"tags"})
 	if !ignored {
 		t.Errorf("Expected resource type aws_autoscaling_group to be ignored")
 	}
 
 	// Case 2: Attribute ignored globally
-	ignored, sev = rules.EvaluateChange("aws/workload_api_dev/008_ssm_dev", "aws_instance", []string{"tags"})
+	ignored, sev := rules.EvaluateChange("aws/workload_api_dev/008_ssm_dev", "aws_instance", []string{"tags"})
 	if !ignored {
 		t.Errorf("Expected tags-only change on aws_instance to be ignored")
 	}
@@ -80,7 +80,7 @@ func TestFilterDrift(t *testing.T) {
 	}
 
 	// Case 4: Attribute ignored for specific layer
-	ignored, sev = rules.EvaluateChange("aws/workload_api_dev/500_rds_dev", "aws_rds_cluster", []string{"database_name"})
+	ignored, _ = rules.EvaluateChange("aws/workload_api_dev/500_rds_dev", "aws_rds_cluster", []string{"database_name"})
 	if !ignored {
 		t.Errorf("Expected database_name change on 500_rds_dev to be ignored")
 	}

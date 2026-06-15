@@ -111,7 +111,7 @@ func setupPluginCache() {
 		if err == nil {
 			cacheDir := filepath.Join(homeDir, ".terraform.d", "plugin-cache")
 			_ = os.MkdirAll(cacheDir, 0755)
-			os.Setenv("TF_PLUGIN_CACHE_DIR", cacheDir)
+			_ = os.Setenv("TF_PLUGIN_CACHE_DIR", cacheDir)
 		}
 	}
 }
@@ -164,7 +164,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 	// 2. Run terraform plan
 	planFile := "tfplan"
 	planPath := filepath.Join(layerDir, planFile)
-	defer os.Remove(planPath)
+	defer func() { _ = os.Remove(planPath) }()
 
 	args := []string{"plan", "-detailed-exitcode", "-out=" + planFile}
 	if !lockState {
