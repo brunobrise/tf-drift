@@ -8,7 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
+	"strings"
 )
 
 type PlanJSON struct {
@@ -98,7 +100,24 @@ func parsePlanJSON(data []byte) ([]DriftChange, error) {
 
 // RunPlan executes the terraform plan command on the target layer directory.
 // It returns a list of detected drift changes, or an error.
-func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool) ([]DriftChange, error) {
+func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool, profileOverride string) ([]DriftChange, error) {
+	// Profile override support
+	if profileOverride != "" {
+		providersPath := filepath.Join(layerDir, "providers.tf")
+		if _, err := os.Stat(providersPath); err == nil {
+			origContent, err := os.ReadFile(providersPath)
+			if err == nil {
+				modifiedContent := modifyProviderText(string(origContent), profileOverride)
+				err = os.WriteFile(providersPath, []byte(modifiedContent), 0644)
+				if err == nil {
+					defer func() {
+						_ = os.WriteFile(providersPath, origContent, 0644)
+					}()
+				}
+			}
+		}
+	}
+
 	// Set plugin cache dir if not set
 	if os.Getenv("TF_PLUGIN_CACHE_DIR") == "" {
 		homeDir, err := os.UserHomeDir()
@@ -176,4 +195,33 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 		// Any other exit code is a genuine error
 		return nil, fmt.Errorf("terraform plan failed (exit code %d): %s", exitCode, string(planOutput))
 	}
+}
+
+// modifyProviderText comments out any assume_role block and injects/uncomments the specified profile
+func modifyProviderText(content string, profile string) string {
+	// 1. Comment out assume_role { ... } block
+	reAssume := regexp.MustCompile(`(?s)assume_role\s*\{[^\}]*\}`)
+	content = reAssume.ReplaceAllStringFunc(content, func(m string) string {
+		lines := strings.Split(m, "\n")
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "//") && line != "" {
+				lead := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+				lines[i] = lead + "# " + strings.TrimLeft(line, " \t")
+			}
+		}
+		return strings.Join(lines, "\n")
+	})
+
+	// 2. Uncomment or replace existing profile = "..." definition
+	reProfile := regexp.MustCompile(`(?m)^\s*(#\s*|//\s*)?profile\s*=\s*".*"`)
+	if reProfile.MatchString(content) {
+		content = reProfile.ReplaceAllString(content, fmt.Sprintf(`  profile = "%s"`, profile))
+	} else {
+		// 3. If no profile exists, inject it after provider "aws" {
+		reProvider := regexp.MustCompile(`(?s)(provider\s*"aws"\s*\{)`)
+		content = reProvider.ReplaceAllString(content, fmt.Sprintf("$1\n  profile = \"%s\"", profile))
+	}
+
+	return content
 }

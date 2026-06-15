@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -78,5 +79,39 @@ func TestParsePlanJSON(t *testing.T) {
 
 	if len(change.ChangedAttributes) != 1 || change.ChangedAttributes[0] != "instance_type" {
 		t.Errorf("Expected only instance_type to be changed, got %v", change.ChangedAttributes)
+	}
+}
+
+func TestModifyProviders(t *testing.T) {
+	input1 := `provider "aws" {
+  region = "eu-west-3"
+  assume_role {
+    role_arn = "arn:aws:iam::123:role/role"
+  }
+}`
+
+	output1 := modifyProviderText(input1, "local-profile")
+	// Clean formatting differences if any, or test exact content
+	if !strings.Contains(output1, `profile = "local-profile"`) {
+		t.Errorf("Expected output to contain profile definition")
+	}
+	if !strings.Contains(output1, "# assume_role {") {
+		t.Errorf("Expected assume_role block to be commented out")
+	}
+
+	input2 := `provider "aws" {
+  region = "eu-west-3"
+  # profile = "dev-api"
+  assume_role {
+    role_arn = "arn:aws:iam::123:role/role"
+  }
+}`
+
+	output2 := modifyProviderText(input2, "local-profile")
+	if !strings.Contains(output2, `profile = "local-profile"`) {
+		t.Errorf("Expected output2 to contain profile override, got:\n%s", output2)
+	}
+	if strings.Contains(output2, `profile = "dev-api"`) {
+		t.Errorf("Expected old profile dev-api to be overridden")
 	}
 }
