@@ -73,7 +73,7 @@ func main() {
 		if err == nil {
 			log.SetOutput(logFile)
 			log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-			defer logFile.Close()
+			defer func() { _ = logFile.Close() }()
 		} else {
 			log.SetOutput(io.Discard)
 		}

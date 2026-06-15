@@ -289,6 +289,9 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.cursor = 0 // Reset cursor
 			m.detailScroll = 0
+			if len(m.getFilteredLayers()) == 0 {
+				m.detailView = false
+			}
 			return m, nil
 
 		case "enter":
@@ -320,7 +323,7 @@ func (m tuiModel) View() string {
 	var b strings.Builder
 	b.WriteString("\n")
 	b.WriteString("  \033[1;36mtf-drift\033[0m — Terraform Drift Detection\n")
-	b.WriteString(fmt.Sprintf("  Concurrency: %d workers | Mode: Lock=%t\n\n", m.concurrency, m.lockState))
+	_, _ = fmt.Fprintf(&b, "  Concurrency: %d workers | Mode: Lock=%t\n\n", m.concurrency, m.lockState)
 
 	// Progress bar calculation
 	percent := 0.0
@@ -345,23 +348,19 @@ func (m tuiModel) View() string {
 		spin = spinnerFrames[m.spinnerTick%len(spinnerFrames)]
 	}
 
-	b.WriteString(fmt.Sprintf("  Progress: [%s] %d%% (%d/%d layers)  %s\n\n",
-		bar, int(percent*100), m.processed, m.total, spin))
+	_, _ = fmt.Fprintf(&b, "  Progress: [%s] %d%% (%d/%d layers)  %s\n\n",
+		bar, int(percent*100), m.processed, m.total, spin)
 
 	filtered := m.getFilteredLayers()
 
 	// 2. Render Detail View if open
-	if m.detailView {
+	if m.detailView && len(filtered) > 0 {
 		if m.cursor >= len(filtered) {
 			m.cursor = 0
 		}
-		if len(filtered) == 0 {
-			m.detailView = false
-			return b.String()
-		}
 
 		layer := filtered[m.cursor]
-		b.WriteString(fmt.Sprintf("  \033[1;33mInspector — %s\033[0m\n", layer))
+		_, _ = fmt.Fprintf(&b, "  \033[1;33mInspector — %s\033[0m\n", layer)
 		b.WriteString("  " + strings.Repeat("─", 60) + "\n")
 
 		lines := m.getDetailLines(layer)
@@ -395,7 +394,7 @@ func (m tuiModel) View() string {
 	}
 
 	// 3. Render List View
-	b.WriteString(fmt.Sprintf("  \033[1;37mActive Filter: %s\033[0m (%d layers shown)\n", m.filter, len(filtered)))
+	_, _ = fmt.Fprintf(&b, "  \033[1;37mActive Filter: %s\033[0m (%d layers shown)\n", m.filter, len(filtered))
 	b.WriteString("  " + strings.Repeat("─", 60) + "\n")
 
 	if len(filtered) == 0 {
@@ -450,7 +449,7 @@ func (m tuiModel) View() string {
 				displayPath = filepath.Clean(layer)
 			}
 
-			statusStr := "\033[90mPENDING\033[0m"
+			var statusStr string
 			if scanned {
 				if res.Err != nil {
 					statusStr = "\033[1;31mERROR\033[0m"
@@ -482,8 +481,17 @@ func (m tuiModel) View() string {
 					statusStr = "\033[32mCLEAN\033[0m"
 				}
 			} else {
-				// Spinner next to active
-				statusStr = fmt.Sprintf("\033[36mSCANNING %s\033[0m", spin)
+				unscannedBefore := 0
+				for i := 0; i < idx; i++ {
+					if _, alreadyScanned := m.results[filtered[i]]; !alreadyScanned {
+						unscannedBefore++
+					}
+				}
+				if unscannedBefore < m.concurrency {
+					statusStr = fmt.Sprintf("\033[36mSCANNING %s\033[0m", spin)
+				} else {
+					statusStr = "\033[90mPENDING\033[0m"
+				}
 			}
 
 			if len(displayPath) > pathWidth {
