@@ -16,6 +16,9 @@
 # Tap the custom repository
 brew tap brunobrise/homebrew-tap
 
+# Trust the tap (Required for Homebrew 6.0+)
+brew trust brunobrise/homebrew-tap
+
 # Install the utility
 brew install tf-drift
 ```

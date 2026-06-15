@@ -90,6 +90,9 @@ Once the release pipeline finishes, users can install `tf-drift` via Homebrew:
 # Add the custom Homebrew tap
 brew tap brunobrise/homebrew-tap
 
+# Trust the tap (Required for Homebrew 6.0+)
+brew trust brunobrise/homebrew-tap
+
 # Install tf-drift
 brew install tf-drift
 
