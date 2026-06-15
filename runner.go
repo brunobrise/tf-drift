@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,7 +116,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 						if strings.Contains(contentStr, "assume_role") || strings.Contains(contentStr, "profile") {
 							modifiedContent, hasProfile := modifyProviderText(contentStr, profileOverride)
 							if !hasProfile && strings.Contains(contentStr, "assume_role") {
-								fmt.Fprintf(os.Stderr, "\n\033[1;33mWarning:\033[0m File %s has assume_role commented but no AWS profile was mentioned.\n", filePath)
+								log.Printf("Warning: File %s has assume_role commented but no AWS profile was mentioned.", filePath)
 							}
 							err = os.WriteFile(filePath, []byte(modifiedContent), 0644)
 							if err == nil {
@@ -181,10 +183,14 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 		// Drift detected. Run terraform show -json to extract diff
 		cmdShow := exec.CommandContext(ctx, "terraform", "show", "-json", planFile)
 		cmdShow.Dir = layerDir
-		showOutput, err := cmdShow.CombinedOutput()
+		var stdoutBuf, stderrBuf bytes.Buffer
+		cmdShow.Stdout = &stdoutBuf
+		cmdShow.Stderr = &stderrBuf
+		err := cmdShow.Run()
 		if err != nil {
-			return nil, fmt.Errorf("terraform show failed: %s: %w", string(showOutput), err)
+			return nil, fmt.Errorf("terraform show failed: %s: %w", stderrBuf.String(), err)
 		}
+		showOutput := stdoutBuf.Bytes()
 
 		rawChanges, err := parsePlanJSON(showOutput)
 		if err != nil {
