@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="100%" height="100%">
+  <!-- Definitions for gradients and markers -->
+  <defs>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#065f46" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5b21b6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="grayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#374151" />
+      <stop offset="100%" stop-color="#6b7280" />
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563" />
+    </marker>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#f9fafb" rx="8" />
+
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="bold" fill="#111827">tf-drift Tool Architecture Flow</text>
+
+  <!-- Step 1: Pre-Discovery -->
+  <rect x="20" y="80" width="160" height="70" rx="6" fill="url(#blueGrad)" stroke="#1d4ed8" stroke-width="1" />
+  <text x="100" y="110" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#ffffff">1. Pre-Discovery</text>
+  <text x="100" y="130" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#dbeafe">Recursive scan of dirs</text>
+
+  <!-- Step 2: Filter & Queue -->
+  <rect x="220" y="80" width="160" height="70" rx="6" fill="url(#grayGrad)" stroke="#4b5563" stroke-width="1" />
+  <text x="300" y="110" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#ffffff">2. Task Queue</text>
+  <text x="300" y="130" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#e5e7eb">Filter and load tasks</text>
+
+  <!-- Step 3: Worker Pool -->
+  <rect x="420" y="80" width="160" height="70" rx="6" fill="url(#purpleGrad)" stroke="#6d28d9" stroke-width="1" />
+  <text x="500" y="110" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#ffffff">3. Worker Pool</text>
+  <text x="500" y="130" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#ede9fe">Parallel plan runners</text>
+
+  <!-- Step 4: Display / TUI -->
+  <rect x="620" y="80" width="160" height="70" rx="6" fill="url(#greenGrad)" stroke="#047857" stroke-width="1" />
+  <text x="700" y="110" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#ffffff">4. Bubble Tea TUI</text>
+  <text x="700" y="130" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#d1fae5">Interactive dashboard</text>
+
+  <!-- Detail Sub-processes -->
+  <!-- Workers Sub-box -->
+  <rect x="420" y="200" width="160" height="150" rx="6" fill="#ffffff" stroke="#e5e7eb" stroke-dasharray="4" />
+  <text x="500" y="220" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#374151">Worker Execution</text>
+  
+  <rect x="430" y="235" width="140" height="25" rx="3" fill="#f3f4f6" stroke="#d1d5db" />
+  <text x="500" y="251" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#1f2937">terraform init</text>
+
+  <rect x="430" y="270" width="140" height="25" rx="3" fill="#f3f4f6" stroke="#d1d5db" />
+  <text x="500" y="286" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#1f2937">terraform plan</text>
+
+  <rect x="430" y="305" width="140" height="25" rx="3" fill="#f3f4f6" stroke="#d1d5db" />
+  <text x="500" y="321" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#1f2937">rules.json check</text>
+
+  <!-- TUI Features Sub-box -->
+  <rect x="620" y="200" width="160" height="150" rx="6" fill="#ffffff" stroke="#e5e7eb" stroke-dasharray="4" />
+  <text x="700" y="220" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#374151">TUI Features</text>
+  
+  <text x="635" y="250" font-family="Inter, sans-serif" font-size="9" fill="#4b5563">• Live Progress &amp; Spinner</text>
+  <text x="635" y="275" font-family="Inter, sans-serif" font-size="9" fill="#4b5563">• Status Filters (ALL/DRIFT/ERR)</text>
+  <text x="635" y="300" font-family="Inter, sans-serif" font-size="9" fill="#4b5563">• Expandable Detail View</text>
+  <text x="635" y="325" font-family="Inter, sans-serif" font-size="9" fill="#4b5563">• Non-TTY Fallback Mode</text>
+
+  <!-- Connectors -->
+  <line x1="180" y1="115" x2="214" y2="115" stroke="#4b5563" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="380" y1="115" x2="414" y2="115" stroke="#4b5563" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="580" y1="115" x2="614" y2="115" stroke="#4b5563" stroke-width="1.5" marker-end="url(#arrow)" />
+  
+  <!-- Down arrows to sub-boxes -->
+  <path d="M 500 150 L 500 194" fill="none" stroke="#9ca3af" stroke-width="1" stroke-dasharray="2" marker-end="url(#arrow)" />
+  <path d="M 700 150 L 700 194" fill="none" stroke="#9ca3af" stroke-width="1" stroke-dasharray="2" marker-end="url(#arrow)" />
+
+  <!-- Loop back from workers to TUI -->
+  <path d="M 500 350 L 500 370 L 700 370 L 700 356" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#arrow)" />
+  <text x="600" y="385" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#6d28d9" font-weight="bold">p.Send(Msg) Updates</text>
+</svg>
