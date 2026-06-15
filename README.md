@@ -8,7 +8,19 @@
 
 `tf-drift` is a Go utility to detect, filter, and inspect configuration drift across multi-layered Terraform workspaces concurrently. It features an interactive, height-adaptive TUI and a non-interactive mode for CI/CD.
 
-## Quick Start
+## Installation
+
+### Via Homebrew (Recommended)
+
+```bash
+# Tap the custom repository
+brew tap brunobrise/homebrew-tap
+
+# Install the utility
+brew install tf-drift
+```
+
+### From Source
 
 ```bash
 # Clone and build
@@ -18,8 +30,12 @@ make build
 
 # Install globally
 go build -o ~/.local/bin/tf-drift
+```
 
-# Run interactive scan
+## Quick Start
+
+```bash
+# Run interactive scan on your infrastructure directory
 tf-drift -dir ../your-infrastructure-dir
 ```
 
