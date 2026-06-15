@@ -100,19 +100,30 @@ func parsePlanJSON(data []byte) ([]DriftChange, error) {
 
 // RunPlan executes the terraform plan command on the target layer directory.
 // It returns a list of detected drift changes, or an error.
-func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool, profileOverride string) ([]DriftChange, error) {
-	// Profile override support
-	if profileOverride != "" {
-		providersPath := filepath.Join(layerDir, "providers.tf")
-		if _, err := os.Stat(providersPath); err == nil {
-			origContent, err := os.ReadFile(providersPath)
-			if err == nil {
-				modifiedContent := modifyProviderText(string(origContent), profileOverride)
-				err = os.WriteFile(providersPath, []byte(modifiedContent), 0644)
-				if err == nil {
-					defer func() {
-						_ = os.WriteFile(providersPath, origContent, 0644)
-					}()
+func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool) ([]DriftChange, error) {
+	// Profile override & local profile support
+	if profileOverride != "" || localProfile {
+		files, err := os.ReadDir(layerDir)
+		if err == nil {
+			for _, file := range files {
+				if !file.IsDir() && filepath.Ext(file.Name()) == ".tf" {
+					filePath := filepath.Join(layerDir, file.Name())
+					origContent, err := os.ReadFile(filePath)
+					if err == nil {
+						contentStr := string(origContent)
+						if strings.Contains(contentStr, "assume_role") || strings.Contains(contentStr, "profile") {
+							modifiedContent, hasProfile := modifyProviderText(contentStr, profileOverride)
+							if !hasProfile && strings.Contains(contentStr, "assume_role") {
+								fmt.Fprintf(os.Stderr, "\n\033[1;33mWarning:\033[0m File %s has assume_role commented but no AWS profile was mentioned.\n", filePath)
+							}
+							err = os.WriteFile(filePath, []byte(modifiedContent), 0644)
+							if err == nil {
+								defer func(path string, orig []byte) {
+									_ = os.WriteFile(path, orig, 0644)
+								}(filePath, origContent)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -197,8 +208,9 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 	}
 }
 
-// modifyProviderText comments out any assume_role block and injects/uncomments the specified profile
-func modifyProviderText(content string, profile string) string {
+// modifyProviderText comments out any assume_role block and injects/uncomments the specified profile.
+// It returns the modified content and a boolean indicating if a profile was successfully configured/found.
+func modifyProviderText(content string, profileOverride string) (string, bool) {
 	// 1. Comment out assume_role { ... } block
 	reAssume := regexp.MustCompile(`(?s)assume_role\s*\{[^\}]*\}`)
 	content = reAssume.ReplaceAllStringFunc(content, func(m string) string {
@@ -213,15 +225,33 @@ func modifyProviderText(content string, profile string) string {
 		return strings.Join(lines, "\n")
 	})
 
-	// 2. Uncomment or replace existing profile = "..." definition
-	reProfile := regexp.MustCompile(`(?m)^\s*(#\s*|//\s*)?profile\s*=\s*".*"`)
-	if reProfile.MatchString(content) {
-		content = reProfile.ReplaceAllString(content, fmt.Sprintf(`  profile = "%s"`, profile))
+	hasProfile := false
+
+	// 2. Handle profile uncommenting/overriding
+	reProfile := regexp.MustCompile(`(?m)^\s*(#\s*|//\s*)?profile\s*=\s*"(.*)"`)
+	if profileOverride != "" {
+		if reProfile.MatchString(content) {
+			content = reProfile.ReplaceAllString(content, fmt.Sprintf(`  profile = "%s"`, profileOverride))
+		} else {
+			// Inject after provider "aws" {
+			reProvider := regexp.MustCompile(`(?s)(provider\s*"aws"\s*\{)`)
+			content = reProvider.ReplaceAllString(content, fmt.Sprintf("$1\n  profile = \"%s\"", profileOverride))
+		}
+		hasProfile = true
 	} else {
-		// 3. If no profile exists, inject it after provider "aws" {
-		reProvider := regexp.MustCompile(`(?s)(provider\s*"aws"\s*\{)`)
-		content = reProvider.ReplaceAllString(content, fmt.Sprintf("$1\n  profile = \"%s\"", profile))
+		// Uncomment existing commented profile
+		reCommented := regexp.MustCompile(`(?m)^\s*(#\s*|//\s*)profile\s*=\s*"(.*)"`)
+		if reCommented.MatchString(content) {
+			content = reCommented.ReplaceAllString(content, `  profile = "$2"`)
+			hasProfile = true
+		} else {
+			// Check if there is already an uncommented profile
+			reUncommented := regexp.MustCompile(`(?m)^\s*profile\s*=\s*".*"`)
+			if reUncommented.MatchString(content) {
+				hasProfile = true
+			}
+		}
 	}
 
-	return content
+	return content, hasProfile
 }

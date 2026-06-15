@@ -90,8 +90,10 @@ func TestModifyProviders(t *testing.T) {
   }
 }`
 
-	output1 := modifyProviderText(input1, "local-profile")
-	// Clean formatting differences if any, or test exact content
+	output1, hasProfile1 := modifyProviderText(input1, "local-profile")
+	if !hasProfile1 {
+		t.Errorf("Expected hasProfile1 to be true when profile is injected")
+	}
 	if !strings.Contains(output1, `profile = "local-profile"`) {
 		t.Errorf("Expected output to contain profile definition")
 	}
@@ -107,11 +109,48 @@ func TestModifyProviders(t *testing.T) {
   }
 }`
 
-	output2 := modifyProviderText(input2, "local-profile")
+	output2, hasProfile2 := modifyProviderText(input2, "local-profile")
+	if !hasProfile2 {
+		t.Errorf("Expected hasProfile2 to be true")
+	}
 	if !strings.Contains(output2, `profile = "local-profile"`) {
 		t.Errorf("Expected output2 to contain profile override, got:\n%s", output2)
 	}
 	if strings.Contains(output2, `profile = "dev-api"`) {
 		t.Errorf("Expected old profile dev-api to be overridden")
+	}
+
+	// Test Case 3: uncomment only (no override)
+	input3 := `provider "aws" {
+  region = "eu-west-3"
+  # profile = "dev-api"
+  assume_role {
+    role_arn = "arn"
+  }
+}`
+	output3, hasProfile3 := modifyProviderText(input3, "")
+	if !hasProfile3 {
+		t.Errorf("Expected hasProfile3 to be true (uncommented profile)")
+	}
+	if !strings.Contains(output3, `profile = "dev-api"`) {
+		t.Errorf("Expected output3 to contain uncommented profile, got:\n%s", output3)
+	}
+	if strings.Contains(output3, `# profile = "dev-api"`) {
+		t.Errorf("Expected profile not to remain commented")
+	}
+
+	// Test Case 4: warning case (no profile mentioned at all, no override)
+	input4 := `provider "aws" {
+  region = "eu-west-3"
+  assume_role {
+    role_arn = "arn"
+  }
+}`
+	output4, hasProfile4 := modifyProviderText(input4, "")
+	if hasProfile4 {
+		t.Errorf("Expected hasProfile4 to be false when no profile is present and no override provided")
+	}
+	if !strings.Contains(output4, "# assume_role {") {
+		t.Errorf("Expected assume_role block to be commented out even if no profile is found")
 	}
 }
