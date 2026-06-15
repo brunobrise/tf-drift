@@ -1,0 +1,50 @@
+name: Bug Report
+description: File a bug report to help us improve tf-drift
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Run tf-drift in a repository...
+        2. Press Enter to view details...
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Info
+      description: Provide details about your environment.
+      placeholder: |
+        - OS: macOS / Linux
+        - Go Version: 1.24.0
+        - Terraform Version: 1.7.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste any relevant logs from `tf-drift.log` if applicable.
+      placeholder: |
+        Warning: File ... has assume_role commented but no AWS profile was mentioned.
