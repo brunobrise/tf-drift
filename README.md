@@ -65,6 +65,8 @@ Run the tool in the current directory or target a specific repository path:
 | `-lock` | `false` | Enable state locking during plan execution. |
 | `-rules` | `rules.json` | Path to rules configuration file. |
 | `-non-interactive` | `false` | Force disable TUI and output logs to stdout. |
+| `-profile-override` | `""` | Override AWS profile name and comment out assume_role blocks. |
+
 
 ---
 
