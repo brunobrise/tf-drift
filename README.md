@@ -66,6 +66,7 @@ Run the tool in the current directory or target a specific repository path:
 | `-rules` | `rules.json` | Path to rules configuration file. |
 | `-non-interactive` | `false` | Force disable TUI and output logs to stdout. |
 | `-profile-override` | `""` | Override AWS profile name and comment out assume_role blocks. |
+| `-local-profile` | `false` | Comment out assume_role blocks and uncomment existing profiles in provider/data files. |
 
 
 ---
