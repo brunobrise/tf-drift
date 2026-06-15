@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -56,6 +58,20 @@ func main() {
 
 	// 4. Determine execution mode (TUI vs Non-Interactive)
 	useTUI := !*nonInteractiveFlag && isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
+
+	if useTUI {
+		logFile, err := os.OpenFile("tf-drift.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err == nil {
+			log.SetOutput(logFile)
+			log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+			defer logFile.Close()
+		} else {
+			log.SetOutput(io.Discard)
+		}
+	} else {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(0)
+	}
 
 	resultsChan := make(chan ScanResult, len(layers))
 	ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, *localProfileFlag, resultsChan)
