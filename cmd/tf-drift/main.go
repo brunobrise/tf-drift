@@ -88,11 +88,11 @@ func main() {
 
 	if !skipConfirmation {
 		if isInteractive {
-			fmt.Print("Do you want to proceed with scanning? [y/N]: ")
+			fmt.Print("Proceed? [y/N]: ")
 			var response string
 			_, err := fmt.Scanln(&response)
 			if err != nil || (strings.ToLower(response) != "y" && strings.ToLower(response) != "yes") {
-				fmt.Println("Scan cancelled.")
+				fmt.Println("Cancelled.")
 				os.Exit(0)
 			}
 		} else {
