@@ -151,3 +151,19 @@ func DeduplicateStrings(slice []string) []string {
 	}
 	return result
 }
+
+// StaticPrefix returns the static parent directory path before any wildcard
+// or brace expansion characters (*, ?, [, {). If no wildcards exist, it
+// returns the pattern itself.
+func StaticPrefix(pattern string) string {
+	idx := strings.IndexAny(pattern, "*?[{")
+	if idx == -1 {
+		return pattern
+	}
+	prefix := pattern[:idx]
+	lastSep := strings.LastIndexAny(prefix, "/\\")
+	if lastSep == -1 {
+		return "."
+	}
+	return prefix[:lastSep]
+}

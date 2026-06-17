@@ -135,7 +135,7 @@ func main() {
 	}
 
 	// TUI Mode
-	m := drift.InitialModel(layers, rules, *concurrencyFlag, *lockFlag, baseDir)
+	m := drift.InitialModel(layers, rules, *concurrencyFlag, *lockFlag, drift.StaticPrefix(baseDir))
 	p := tea.NewProgram(m, tea.WithMouseCellMotion())
 
 	// Goroutine to forward progress from workers channel to Bubble Tea program loop

@@ -485,7 +485,11 @@ func (m tuiModel) View() string {
 			// Format relative path for display
 			displayPath := layer
 			if rel, err := filepath.Rel(m.baseDir, layer); err == nil {
-				displayPath = rel
+				if rel == "." {
+					displayPath = filepath.Base(layer)
+				} else {
+					displayPath = rel
+				}
 			} else {
 				displayPath = filepath.Clean(layer)
 			}
