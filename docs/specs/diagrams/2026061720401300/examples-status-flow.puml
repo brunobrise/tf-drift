@@ -1,0 +1,23 @@
+@startuml
+skinparam backgroundColor transparent
+skinparam defaultTextAlignment center
+
+start
+:Run tf-drift against examples/;
+:Discover three Terraform layers;
+fork
+  :clean-empty;
+  :terraform plan exits 0;
+  :Report CLEAN;
+fork again
+  :drift-new-resource;
+  :terraform plan exits 2;
+  :Report DRIFTED;
+fork again
+  :error-invalid-config;
+  :terraform init or plan fails;
+  :Report ERROR;
+end fork
+:Show mixed-status report;
+stop
+@enduml

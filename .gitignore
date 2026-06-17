@@ -1,3 +1,6 @@
 /tf-drift
 /tfplan
 /tf-drift.log
+**/.terraform/
+**/.terraform.lock.hcl
+**/tfplan

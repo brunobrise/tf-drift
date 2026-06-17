@@ -42,6 +42,18 @@ go build -o ~/.local/bin/tf-drift
 tf-drift -dir ../your-infrastructure-dir
 ```
 
+## Examples
+
+The repository includes local Terraform examples for the main scan statuses:
+
+```bash
+tf-drift -dir examples -non-interactive || true
+tf-drift -dir examples -non-interactive -format json || true
+tf-drift -dir "examples/{clean-empty|drift-new-resource}" -non-interactive
+```
+
+See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers.
+
 ## CLI Flags
 
 | Flag | Type | Default | Description |
