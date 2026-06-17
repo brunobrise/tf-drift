@@ -78,3 +78,76 @@ func FilterLayers(layers []string, envFilter string, layerFilter string) []strin
 	}
 	return filtered
 }
+
+// ExpandBraces recursively expands brace patterns separated by '|' (e.g. "path/{a|b}")
+// into multiple choices. If no braces are found, it returns the pattern itself.
+func ExpandBraces(pattern string) []string {
+	start := strings.Index(pattern, "{")
+	if start == -1 {
+		return []string{pattern}
+	}
+	end := strings.Index(pattern[start:], "}")
+	if end == -1 {
+		return []string{pattern}
+	}
+	end = start + end
+
+	prefix := pattern[:start]
+	suffix := pattern[end+1:]
+	choicesStr := pattern[start+1 : end]
+	choices := strings.Split(choicesStr, "|")
+
+	var results []string
+	for _, choice := range choices {
+		expanded := prefix + choice + suffix
+		results = append(results, ExpandBraces(expanded)...)
+	}
+	return results
+}
+
+// ResolveDirs resolves a directory pattern (supporting glob wildcards and braces)
+// to a list of existing absolute directory paths.
+func ResolveDirs(dirPattern string) ([]string, error) {
+	patterns := ExpandBraces(dirPattern)
+
+	var resolvedDirs []string
+	seen := make(map[string]bool)
+
+	for _, pat := range patterns {
+		matches, err := filepath.Glob(pat)
+		if err != nil {
+			return nil, err
+		}
+		for _, match := range matches {
+			info, err := os.Stat(match)
+			if err != nil {
+				continue
+			}
+			if info.IsDir() {
+				abs, err := filepath.Abs(match)
+				if err != nil {
+					abs = match
+				}
+				if !seen[abs] {
+					seen[abs] = true
+					resolvedDirs = append(resolvedDirs, abs)
+				}
+			}
+		}
+	}
+
+	return resolvedDirs, nil
+}
+
+// DeduplicateStrings removes duplicate strings from a slice.
+func DeduplicateStrings(slice []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+	for _, val := range slice {
+		if !seen[val] {
+			seen[val] = true
+			result = append(result, val)
+		}
+	}
+	return result
+}

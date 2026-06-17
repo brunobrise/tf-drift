@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/brunobrise/tf-drift/internal/drift"
@@ -19,7 +20,7 @@ import (
 var version = "dev"
 
 func main() {
-	dirFlag := flag.String("dir", ".", "Path to the target directory to scan")
+	dirFlag := flag.String("dir", ".", "Path to the target directory to scan (supports glob and {a|b} choices)")
 	envFlag := flag.String("env", "", "Filter layers by environment name")
 	layerFlag := flag.String("layer", "", "Filter layers by specific layer path")
 	concurrencyFlag := flag.Int("concurrency", 5, "Max parallel workers")
@@ -31,6 +32,8 @@ func main() {
 	localProfileFlag := flag.Bool("local-profile", false, "Comment out assume_role blocks and uncomment existing profiles in provider configs")
 	reconfigureFlag := flag.Bool("reconfigure", false, "Run terraform init with -reconfigure flag")
 	migrateStateFlag := flag.Bool("migrate-state", false, "Run terraform init with -migrate-state flag")
+	yesFlag := flag.Bool("yes", false, "Skip confirmation prompt")
+	yFlag := flag.Bool("y", false, "Skip confirmation prompt (shorthand)")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 
 	flag.Parse()
@@ -51,16 +54,55 @@ func main() {
 
 	// 2. Discover and Filter Layers
 	baseDir := *dirFlag
-	allLayers, err := drift.DiscoverLayers(baseDir)
+	resolvedDirs, err := drift.ResolveDirs(baseDir)
 	if err != nil {
-		fmt.Printf("Error discovering layers: %v\n", err)
+		fmt.Printf("Error resolving directory pattern: %v\n", err)
 		os.Exit(1)
 	}
+	if len(resolvedDirs) == 0 {
+		fmt.Printf("No matching directories found for pattern: %s\n", baseDir)
+		os.Exit(0)
+	}
+
+	var allLayers []string
+	for _, d := range resolvedDirs {
+		layers, err := drift.DiscoverLayers(d)
+		if err != nil {
+			fmt.Printf("Error discovering layers in %s: %v\n", d, err)
+			os.Exit(1)
+		}
+		allLayers = append(allLayers, layers...)
+	}
+
+	allLayers = drift.DeduplicateStrings(allLayers)
 
 	layers := drift.FilterLayers(allLayers, *envFlag, *layerFlag)
 	if len(layers) == 0 {
 		fmt.Println("No Terraform configuration layers discovered.")
 		os.Exit(0)
+	}
+
+	// 2b. Ask for confirmation before any action
+	skipConfirmation := *yesFlag || *yFlag
+	isInteractive := isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
+
+	if !skipConfirmation {
+		fmt.Printf("Discovered %d layers to scan:\n", len(layers))
+		for _, l := range layers {
+			fmt.Printf("  - %s\n", l)
+		}
+		if isInteractive {
+			fmt.Print("\nDo you want to proceed with scanning? [y/N]: ")
+			var response string
+			_, err := fmt.Scanln(&response)
+			if err != nil || (strings.ToLower(response) != "y" && strings.ToLower(response) != "yes") {
+				fmt.Println("Scan cancelled.")
+				os.Exit(0)
+			}
+		} else {
+			fmt.Println("\nError: Confirmation required. Run with -yes or -y to auto-approve in non-interactive environments.")
+			os.Exit(1)
+		}
 	}
 
 	// 3. Signal handling context for clean termination

@@ -87,3 +87,59 @@ func TestFilterLayers(t *testing.T) {
 		t.Errorf("Filter by layer failed: %v", filteredByLayer)
 	}
 }
+
+func TestResolveDirsAndBraces(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	dirs := []string{
+		filepath.Join(tmpDir, "aws_dev"),
+		filepath.Join(tmpDir, "aws_prod"),
+		filepath.Join(tmpDir, "other_dir"),
+	}
+
+	for _, d := range dirs {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			t.Fatalf("Failed to create dir %s: %v", d, err)
+		}
+	}
+
+	// 1. Test ExpandBraces
+	pattern := filepath.Join(tmpDir, "aws_{dev|prod}")
+	expanded := ExpandBraces(pattern)
+	sort.Strings(expanded)
+	expectedExpanded := []string{
+		filepath.Join(tmpDir, "aws_dev"),
+		filepath.Join(tmpDir, "aws_prod"),
+	}
+	sort.Strings(expectedExpanded)
+
+	if len(expanded) != len(expectedExpanded) {
+		t.Fatalf("Expected %d expanded patterns, got %d", len(expectedExpanded), len(expanded))
+	}
+	for i := range expanded {
+		if expanded[i] != expectedExpanded[i] {
+			t.Errorf("Expected expanded[%d] = %s, got %s", i, expectedExpanded[i], expanded[i])
+		}
+	}
+
+	// 2. Test ResolveDirs with Braces
+	resolved, err := ResolveDirs(pattern)
+	if err != nil {
+		t.Fatalf("ResolveDirs failed: %v", err)
+	}
+	sort.Strings(resolved)
+	if len(resolved) != 2 || resolved[0] != filepath.Join(tmpDir, "aws_dev") || resolved[1] != filepath.Join(tmpDir, "aws_prod") {
+		t.Errorf("ResolveDirs with braces failed: %v", resolved)
+	}
+
+	// 3. Test ResolveDirs with Wildcard
+	wildcardPattern := filepath.Join(tmpDir, "aws_*")
+	resolvedWildcard, err := ResolveDirs(wildcardPattern)
+	if err != nil {
+		t.Fatalf("ResolveDirs failed: %v", err)
+	}
+	sort.Strings(resolvedWildcard)
+	if len(resolvedWildcard) != 2 || resolvedWildcard[0] != filepath.Join(tmpDir, "aws_dev") || resolvedWildcard[1] != filepath.Join(tmpDir, "aws_prod") {
+		t.Errorf("ResolveDirs with wildcard failed: %v", resolvedWildcard)
+	}
+}
