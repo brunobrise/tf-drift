@@ -87,12 +87,8 @@ func main() {
 	isInteractive := isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
 
 	if !skipConfirmation {
-		fmt.Printf("Discovered %d layers to scan:\n", len(layers))
-		for _, l := range layers {
-			fmt.Printf("  - %s\n", l)
-		}
 		if isInteractive {
-			fmt.Print("\nDo you want to proceed with scanning? [y/N]: ")
+			fmt.Print("Do you want to proceed with scanning? [y/N]: ")
 			var response string
 			_, err := fmt.Scanln(&response)
 			if err != nil || (strings.ToLower(response) != "y" && strings.ToLower(response) != "yes") {
@@ -100,7 +96,7 @@ func main() {
 				os.Exit(0)
 			}
 		} else {
-			fmt.Println("\nError: Confirmation required. Run with -yes or -y to auto-approve in non-interactive environments.")
+			fmt.Println("Error: Confirmation required. Run with -yes or -y to auto-approve in non-interactive environments.")
 			os.Exit(1)
 		}
 	}
