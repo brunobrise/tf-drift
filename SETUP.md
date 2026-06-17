@@ -36,7 +36,7 @@ Dependabot is configured to keep dependencies secure and up to date automaticall
 
 ## 3. Releases & GoReleaser (Continuous Delivery)
 
-Releases are fully automated and driven by Git tags.
+Releases are automated with GoReleaser. A release can start from a pushed tag, a manual workflow run, or the daily scheduled workflow.
 
 ### Step 3.1: Configure Homebrew Tap Credentials
 Because GitHub Actions' default `GITHUB_TOKEN` is scoped to the current repository, it cannot write to a separate Homebrew tap repository (e.g. `github.com/brunobrise/homebrew-tap`). You must provide a custom token with write access.
@@ -61,7 +61,27 @@ Because GitHub Actions' default `GITHUB_TOKEN` is scoped to the current reposito
    * **Secret**: Paste the copied token value.
 5. Click **Add secret**.
 
-### Step 3.2: Tag and Publish a Release
+### Step 3.2: Scheduled Releases
+
+The release workflow runs every day at midnight UTC:
+
+```yaml
+schedule:
+  - cron: '0 0 * * *'
+```
+
+On scheduled runs, the workflow checks the latest stable `vX.Y.Z` tag. If the default branch has no new commits after that tag, the workflow exits without publishing. If new commits exist, it computes the next Semantic Version tag from Conventional Commits:
+
+* Breaking change (`!` or `BREAKING CHANGE:`) -> major bump.
+* `feat:` -> minor bump.
+* Any other new commit -> patch bump.
+
+The workflow creates the tag locally and runs GoReleaser once. GoReleaser publishes the GitHub Release, release tag, binaries, checksums, changelog, and Homebrew tap update.
+
+### Step 3.3: Manual Release Options
+
+You can still create a SemVer tag manually:
+
 1. Create a Semantic Version tag pointing to the release commit:
    ```bash
    git tag v1.0.0
@@ -71,8 +91,10 @@ Because GitHub Actions' default `GITHUB_TOKEN` is scoped to the current reposito
    git push origin v1.0.0
    ```
 
+You can also run the `Release` workflow manually from GitHub Actions. Leave `version` empty to auto-bump, or provide `vX.Y.Z` to choose the tag.
+
 ### Automated Release Actions
-1. Runs the lint and test suites.
+1. Runs the Go test suite with race detection.
 2. Builds cross-platform binaries using **GoReleaser**:
    * **macOS** (`amd64` / `arm64`)
    * **Linux** (`amd64` / `arm64`)

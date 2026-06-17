@@ -1,12 +1,29 @@
 name: Release
 
 on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional release tag (vX.Y.Z). Leave empty to auto-bump.'
+        required: false
+        type: string
+      force:
+        description: 'Release even when no commits exist after the latest tag.'
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - 'v*'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   goreleaser:
@@ -24,7 +41,96 @@ jobs:
           go-version: '1.24'
           cache: true
 
+      - name: Determine release tag
+        id: release
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_FORCE: ${{ inputs.force }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --force --tags origin
+
+          current_sha="$(git rev-parse HEAD)"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "current_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest_tag="$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)"
+          if [[ -n "${latest_tag}" ]]; then
+            commit_range="${latest_tag}..HEAD"
+            commit_count="$(git rev-list --count "${commit_range}")"
+          else
+            commit_range="HEAD"
+            commit_count="$(git rev-list --count HEAD)"
+          fi
+
+          requested_tag="${INPUT_VERSION:-}"
+          force="${INPUT_FORCE:-false}"
+
+          if [[ -z "${requested_tag}" && "${commit_count}" == "0" && "${force}" != "true" ]]; then
+            echo "No commits after latest release tag. Skipping release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "current_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -n "${requested_tag}" ]]; then
+            if [[ ! "${requested_tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Manual version must match vX.Y.Z, got: ${requested_tag}" >&2
+              exit 1
+            fi
+            next_tag="${requested_tag}"
+          else
+            if [[ -n "${latest_tag}" ]]; then
+              version="${latest_tag#v}"
+            else
+              version="0.0.0"
+            fi
+
+            IFS='.' read -r major minor patch <<< "${version}"
+
+            commit_bodies="$(git log --format=%B "${commit_range}")"
+            commit_subjects="$(git log --format=%s "${commit_range}")"
+
+            if grep -Eq '(^|[[:space:]])BREAKING[ -]CHANGE:' <<< "${commit_bodies}" || \
+              grep -Eq '^[A-Za-z]+(\([^)]+\))?!:' <<< "${commit_subjects}"; then
+              major=$((major + 1))
+              minor=0
+              patch=0
+            elif grep -Eq '^feat(\([^)]+\))?:' <<< "${commit_subjects}"; then
+              minor=$((minor + 1))
+              patch=0
+            else
+              patch=$((patch + 1))
+            fi
+
+            next_tag="v${major}.${minor}.${patch}"
+          fi
+
+          if git rev-parse -q --verify "refs/tags/${next_tag}" >/dev/null; then
+            echo "Tag ${next_tag} already exists. Refusing to recreate it." >&2
+            exit 1
+          fi
+
+          git tag "${next_tag}" "${current_sha}"
+
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "tag=${next_tag}" >> "$GITHUB_OUTPUT"
+          echo "current_sha=${current_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Tests
+        if: steps.release.outputs.should_release == 'true'
+        run: |
+          go test -race -v ./...
+
       - name: Run GoReleaser
+        if: steps.release.outputs.should_release == 'true'
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -33,3 +139,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.release.outputs.tag }}

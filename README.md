@@ -98,3 +98,7 @@ Selection filters run after `-dir`, `-env`, and `-layer`. Include filters run be
 
 * **Exit Codes**: `0` (clean), `1` (failure), `2` (drift detected).
 * **Logs**: Captured in `tf-drift.log` in TUI mode to prevent screen corruption, or printed to `Stderr` in non-interactive mode.
+
+## Release Automation
+
+Releases are built with GoReleaser and published to GitHub Releases and the Homebrew tap. The release workflow runs daily at midnight UTC and only publishes when new commits exist after the latest stable `vX.Y.Z` tag. See `SETUP.md` for release credentials, manual release options, and recovery steps.

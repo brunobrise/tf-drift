@@ -1,0 +1,37 @@
+@startuml scheduled-release-flow
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName "sans-serif"
+skinparam activity {
+  BackgroundColor #F7F9FC
+  BorderColor #2F3A4A
+  FontColor #111827
+}
+skinparam diamond {
+  BackgroundColor #EEF2FF
+  BorderColor #2F3A4A
+  FontColor #111827
+}
+skinparam ArrowColor #2F3A4A
+skinparam StartColor #2F3A4A
+skinparam EndColor #2F3A4A
+
+start
+if (Trigger type?) then (tag push)
+  :Use pushed v* tag;
+else (schedule or manual)
+  :Fetch full git history and tags;
+  if (New commits, force, or version?) then (yes)
+    :Compute or validate vX.Y.Z;
+    :Create local tag at HEAD;
+  else (no)
+    :Skip release;
+    stop
+  endif
+endif
+:Run go test -race -v ./...;
+:Run GoReleaser once;
+:Publish GitHub Release, assets,
+checksums, and Homebrew formula;
+stop
+@enduml
