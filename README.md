@@ -42,6 +42,8 @@ go build -o ~/.local/bin/tf-drift
 tf-drift -dir ../your-infrastructure-dir
 ```
 
+In interactive mode, `tf-drift` first shows a checkbox picker for discovered Terraform configs. Use `Space` to tick or untick a config, `a` to select all, `n` to select none, and `Enter` to scan the selected configs.
+
 ## Examples
 
 The repository includes local Terraform examples for the main scan statuses:
@@ -50,6 +52,8 @@ The repository includes local Terraform examples for the main scan statuses:
 tf-drift -dir examples -non-interactive || true
 tf-drift -dir examples -non-interactive -format json || true
 tf-drift -dir "examples/{clean-empty|drift-new-resource}" -non-interactive
+tf-drift -dir examples -non-interactive -include "clean-empty,drift-*" || true
+tf-drift -dir examples -non-interactive -exclude "error-*"
 ```
 
 See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers.
@@ -61,6 +65,8 @@ See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers
 | `-dir` | string | `.` | Directory to scan. |
 | `-env` | string | `""` | Filter layers by environment folder name. |
 | `-layer` | string | `""` | Target a specific layer path. |
+| `-include` | string | `""` | Comma-separated config suffix or glob patterns to include. |
+| `-exclude` | string | `""` | Comma-separated config suffix or glob patterns to exclude. |
 | `-concurrency` | int | `5` | Max concurrent plan execution workers. |
 | `-format` | string | `text` | Non-interactive output format (`text`, `json`, `markdown`, `slack`). |
 | `-lock` | bool | `false` | Enable state locking. |
@@ -68,6 +74,10 @@ See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers
 | `-non-interactive` | bool | `false` | Disable TUI mode. |
 | `-profile-override` | string | `""` | Override AWS profile and comment out `assume_role`. |
 | `-local-profile` | bool | `false` | Comment out `assume_role` and uncomment existing profiles. |
+| `-reconfigure` | bool | `false` | Run `terraform init` with `-reconfigure`. |
+| `-migrate-state` | bool | `false` | Run `terraform init` with `-migrate-state`. |
+
+Selection filters run after `-dir`, `-env`, and `-layer`. Include filters run before exclude filters and preserve discovery order.
 
 ## Rules Configuration (`rules.json`)
 

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/brunobrise/tf-drift/internal/drift"
@@ -22,6 +23,8 @@ func main() {
 	dirFlag := flag.String("dir", ".", "Path to the target directory to scan (supports glob and {a|b} choices)")
 	envFlag := flag.String("env", "", "Filter layers by environment name")
 	layerFlag := flag.String("layer", "", "Filter layers by specific layer path")
+	includeFlag := flag.String("include", "", "Comma-separated config suffix/glob patterns to include")
+	excludeFlag := flag.String("exclude", "", "Comma-separated config suffix/glob patterns to exclude")
 	concurrencyFlag := flag.Int("concurrency", 5, "Max parallel workers")
 	formatFlag := flag.String("format", "text", "Non-interactive output format (text|json|markdown|slack)")
 	lockFlag := flag.Bool("lock", false, "Enable state locking")
@@ -74,16 +77,24 @@ func main() {
 	allLayers = drift.DeduplicateStrings(allLayers)
 
 	layers := drift.FilterLayers(allLayers, *envFlag, *layerFlag)
+	layers, err = drift.ApplySelectionFilters(layers, *includeFlag, *excludeFlag)
+	if err != nil {
+		fmt.Printf("Error applying selection filters: %v\n", err)
+		os.Exit(1)
+	}
 	if len(layers) == 0 {
-		fmt.Println("No Terraform configuration layers discovered.")
+		fmt.Println("No Terraform configuration layers selected.")
 		os.Exit(0)
 	}
-
-
 
 	// 3. Signal handling context for clean termination
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	displayBaseDir := drift.StaticPrefix(baseDir)
+	if absBaseDir, err := filepath.Abs(displayBaseDir); err == nil {
+		displayBaseDir = absBaseDir
+	}
 
 	// 4. Determine execution mode (TUI vs Non-Interactive)
 	useTUI := !*nonInteractiveFlag && isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
@@ -100,6 +111,18 @@ func main() {
 	} else {
 		log.SetOutput(os.Stderr)
 		log.SetFlags(0)
+	}
+
+	if useTUI {
+		selectedLayers, proceed, err := drift.RunLayerSelection(layers, displayBaseDir)
+		if err != nil {
+			fmt.Printf("Error running selection TUI: %v\n", err)
+			os.Exit(1)
+		}
+		if !proceed {
+			os.Exit(0)
+		}
+		layers = selectedLayers
 	}
 
 	resultsChan := make(chan drift.ScanResult, len(layers))
@@ -135,7 +158,7 @@ func main() {
 	}
 
 	// TUI Mode
-	m := drift.InitialModel(layers, rules, *concurrencyFlag, *lockFlag, drift.StaticPrefix(baseDir))
+	m := drift.InitialModel(layers, rules, *concurrencyFlag, *lockFlag, displayBaseDir)
 	p := tea.NewProgram(m, tea.WithMouseCellMotion())
 
 	// Goroutine to forward progress from workers channel to Bubble Tea program loop

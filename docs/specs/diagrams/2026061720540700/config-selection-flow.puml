@@ -1,0 +1,26 @@
+@startuml
+skinparam backgroundColor transparent
+skinparam defaultTextAlignment center
+
+start
+:Resolve -dir patterns;
+:Discover Terraform configs;
+:Apply -env and -layer filters;
+if (-include or -exclude provided?) then (yes)
+  :Apply CLI selection filters;
+endif
+if (Interactive TUI?) then (yes)
+  :Show checkbox picker;
+  :User ticks configs;
+  if (At least one selected?) then (yes)
+    :Start scan with selected configs;
+  else (no)
+    :Stay on picker with message;
+  endif
+else (no)
+  :Start scan with filtered configs;
+endif
+:Run worker pool;
+:Render report;
+stop
+@enduml

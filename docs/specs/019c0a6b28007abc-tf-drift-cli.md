@@ -12,52 +12,20 @@ status: approved
 
 ## Architecture & Workflow
 
-The tool operates in three distinct phases:
+The tool operates in four distinct phases:
 1. **Pre-Discovery (Recursive Scanning):** Walk the target directory (defaulting to the current working directory `.`) to identify all directories containing `.tf` files and a backend configuration block.
-2. **Parallel Processing (Worker Pool):** Queue identified layers into a concurrent worker pool of a bounded size (configured via `-concurrency`). For each layer, run `terraform init` (if needed) and `terraform plan -detailed-exitcode -lock=false`.
-3. **Interactive display (Bubble Tea TUI):** Present a live, modern dashboard indicating active workers, scanning progress, and a scrollable table of layers. Allows filtering by status and expanding drifted layers to inspect detailed changes.
+2. **Selection:** Apply `-env`, `-layer`, `-include`, and `-exclude`, then optionally show a checkbox picker in interactive mode.
+3. **Parallel Processing (Worker Pool):** Queue selected layers into a concurrent worker pool of a bounded size (configured via `-concurrency`). For each layer, run `terraform init` (if needed) and `terraform plan -detailed-exitcode -lock=false`.
+4. **Interactive display (Bubble Tea TUI):** Present a live, modern dashboard indicating active workers, scanning progress, and a scrollable table of layers. Allows filtering by status and expanding drifted layers to inspect detailed changes.
 
-### PlantUML Workflow Diagram
+### Workflow Diagram
 
-```plantuml
-@startuml
-start
-:Parse Command Line Arguments;
-:Scan Target Directory Recursively;
-note right: Finds folders with *.tf files
-:Filter Layers by -env or -layer;
-:Initialize Worker Pool (concurrency = N);
-fork
-  :Worker Queue Tasks;
-  while (Has Layers in Queue?) is (yes)
-    :Pop Layer;
-    :Check Init State;
-    if (Need Init?) then (yes)
-      :Run 'terraform init';
-    endif
-    :Run 'terraform plan -detailed-exitcode -lock=false';
-    if (Detailed Exit Code == 2 (Drift)) then (yes)
-      :Run 'terraform show -json';
-      :Parse and Apply rules.json;
-    endif
-    :Send Result to TUI Loop via p.Send();
-  endwhile
-fork again
-  :Bubble Tea TUI Loop;
-  while (Running?) is (yes)
-    :Render Live Progress / Active Workers;
-    :Render Interactive List & Detailed View;
-    :Handle Keyboard Input (Scroll, Filter, Inspect);
-  endwhile (no)
-end fork
-:Print Final Report or Exit;
-stop
-@endum
-```
+The workflow now includes a selection step before workers start.
 
-![Architecture Diagram](diagram.svg)
+![Architecture Diagram](./diagrams/019c0a6b28007abc/workflow.svg)
 
 ## TUI Layout & Features
+* **Pre-scan Picker:** Interactive checkbox list for selecting which discovered configs to scan.
 * **Progress Bar:** Interactive indicator of processed layers vs total layers.
 * **Scrollable Table:** List of layers showing the relative path, environment, status (`OK`, `DRIFTED`, `ERROR`, `SCANNING`, `PENDING`), and drift severity.
 * **Expanded View:** Selecting a layer and pressing `Enter` displays the detailed diff or error message in an inspector pane.
