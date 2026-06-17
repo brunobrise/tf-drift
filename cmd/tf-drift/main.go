@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/brunobrise/tf-drift/internal/drift"
@@ -32,8 +31,6 @@ func main() {
 	localProfileFlag := flag.Bool("local-profile", false, "Comment out assume_role blocks and uncomment existing profiles in provider configs")
 	reconfigureFlag := flag.Bool("reconfigure", false, "Run terraform init with -reconfigure flag")
 	migrateStateFlag := flag.Bool("migrate-state", false, "Run terraform init with -migrate-state flag")
-	yesFlag := flag.Bool("yes", false, "Skip confirmation prompt")
-	yFlag := flag.Bool("y", false, "Skip confirmation prompt (shorthand)")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 
 	flag.Parse()
@@ -82,24 +79,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 2b. Ask for confirmation before any action
-	skipConfirmation := *yesFlag || *yFlag
-	isInteractive := isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
 
-	if !skipConfirmation {
-		if isInteractive {
-			fmt.Print("Proceed? [y/N]: ")
-			var response string
-			_, err := fmt.Scanln(&response)
-			if err != nil || (strings.ToLower(response) != "y" && strings.ToLower(response) != "yes") {
-				fmt.Println("Cancelled.")
-				os.Exit(0)
-			}
-		} else {
-			fmt.Println("Error: Confirmation required. Run with -yes or -y to auto-approve in non-interactive environments.")
-			os.Exit(1)
-		}
-	}
 
 	// 3. Signal handling context for clean termination
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
