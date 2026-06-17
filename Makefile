@@ -9,7 +9,7 @@ build:
 	go build -o $(BINARY_NAME) ./cmd/tf-drift
 
 install:
-	go install
+	go install ./cmd/tf-drift
 
 test:
 	go test -v ./...

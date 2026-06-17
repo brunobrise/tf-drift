@@ -18,7 +18,7 @@ func TestScanLayersWorkerPool(t *testing.T) {
 	var totalRuns int32
 
 	// Mock runner function that simulates work and tracks concurrency
-	mockRunner := func(ctx context.Context, dir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool) ([]DriftChange, error) {
+	mockRunner := func(ctx context.Context, dir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool, reconfigure bool, migrateState bool) ([]DriftChange, error) {
 		// Increment active runs
 		currentActive := atomic.AddInt32(&activeRuns, 1)
 
@@ -47,7 +47,7 @@ func TestScanLayersWorkerPool(t *testing.T) {
 	resultsChan := make(chan ScanResult, len(layers))
 
 	// Run worker pool
-	ScanLayersWithRunner(context.Background(), layers, rules, concurrency, false, "", false, resultsChan, mockRunner)
+	ScanLayersWithRunner(context.Background(), layers, rules, concurrency, false, "", false, false, false, resultsChan, mockRunner)
 
 	// Collect results
 	resultsCount := 0

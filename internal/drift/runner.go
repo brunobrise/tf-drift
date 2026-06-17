@@ -118,7 +118,7 @@ func setupPluginCache() {
 
 // RunPlan executes the terraform plan command on the target layer directory.
 // It returns a list of detected drift changes, or an error.
-func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool) ([]DriftChange, error) {
+func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool, reconfigure bool, migrateState bool) ([]DriftChange, error) {
 	// Profile override & local profile support
 	if profileOverride != "" || localProfile {
 		files, err := os.ReadDir(layerDir)
@@ -150,10 +150,18 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 	// Set plugin cache dir once safely
 	initCacheOnce.Do(setupPluginCache)
 
-	// 1. Initialize if needed
+	// 1. Initialize if needed, or if reconfigure/migrateState is requested
 	tfDir := filepath.Join(layerDir, ".terraform")
-	if _, err := os.Stat(tfDir); os.IsNotExist(err) {
-		cmd := exec.CommandContext(ctx, "terraform", "init", "-input=false")
+	_, statErr := os.Stat(tfDir)
+	if os.IsNotExist(statErr) || reconfigure || migrateState {
+		args := []string{"init", "-input=false"}
+		if reconfigure {
+			args = append(args, "-reconfigure")
+		}
+		if migrateState {
+			args = append(args, "-migrate-state")
+		}
+		cmd := exec.CommandContext(ctx, "terraform", args...)
 		cmd.Dir = layerDir
 		// Capture output to prevent corrupting interactive TUI
 		if out, err := cmd.CombinedOutput(); err != nil {

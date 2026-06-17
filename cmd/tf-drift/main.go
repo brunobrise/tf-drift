@@ -29,6 +29,8 @@ func main() {
 	nonInteractiveFlag := flag.Bool("non-interactive", false, "Force disable TUI")
 	profileOverrideFlag := flag.String("profile-override", "", "Override AWS provider profile and comment out assume_role blocks")
 	localProfileFlag := flag.Bool("local-profile", false, "Comment out assume_role blocks and uncomment existing profiles in provider configs")
+	reconfigureFlag := flag.Bool("reconfigure", false, "Run terraform init with -reconfigure flag")
+	migrateStateFlag := flag.Bool("migrate-state", false, "Run terraform init with -migrate-state flag")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 
 	flag.Parse()
@@ -83,7 +85,7 @@ func main() {
 	}
 
 	resultsChan := make(chan drift.ScanResult, len(layers))
-	drift.ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, *localProfileFlag, resultsChan)
+	drift.ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, *localProfileFlag, *reconfigureFlag, *migrateStateFlag, resultsChan)
 
 	if !useTUI {
 		// Non-interactive Mode (standard stdout report, good for CI/CD)
