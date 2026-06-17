@@ -263,3 +263,69 @@ func TestTUIDetailViewLayerNavigation(t *testing.T) {
 		t.Errorf("Expected detailScroll to remain 4 on boundary right press, got %d", m.detailScroll)
 	}
 }
+
+func TestTUIMouseScrollAndPageAliases(t *testing.T) {
+	layers := []string{"layer1", "layer2", "layer3"}
+	m := initialModel(layers, RulesConfig{}, 2, false, ".")
+
+	// 1. Test Mouse Scroll Wheel Down outside detail view
+	newModel, _ := m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelDown})
+	m = newModel.(tuiModel)
+	if m.cursor != 1 {
+		t.Errorf("Expected cursor to move to 1 on MouseWheelDown, got %d", m.cursor)
+	}
+
+	// 2. Test Mouse Scroll Wheel Up outside detail view
+	newModel, _ = m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelUp})
+	m = newModel.(tuiModel)
+	if m.cursor != 0 {
+		t.Errorf("Expected cursor to return to 0 on MouseWheelUp, got %d", m.cursor)
+	}
+
+	// 3. Test Mouse Scroll inside detail view
+	m.results["layer1"] = ScanResult{
+		Path: "layer1",
+		Drifts: []DriftChange{
+			{Address: "d1", Severity: "CRITICAL"},
+			{Address: "d2", Severity: "CRITICAL"},
+			{Address: "d3", Severity: "CRITICAL"},
+			{Address: "d4", Severity: "CRITICAL"},
+			{Address: "d5", Severity: "CRITICAL"},
+		},
+	}
+	m.detailView = true
+	m.height = 10 // listHeight will be 10 - 10 = 0 -> falls back to 15, listHeight < 3 makes it 3. So listHeight is 3
+
+	// Scroll down in detail view
+	newModel, _ = m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelDown})
+	m = newModel.(tuiModel)
+	if m.detailScroll != 1 {
+		t.Errorf("Expected detailScroll to be 1 on MouseWheelDown in detail view, got %d", m.detailScroll)
+	}
+
+	// Scroll up in detail view
+	newModel, _ = m.Update(tea.MouseMsg{Button: tea.MouseButtonWheelUp})
+	m = newModel.(tuiModel)
+	if m.detailScroll != 0 {
+		t.Errorf("Expected detailScroll to be 0 on MouseWheelUp in detail view, got %d", m.detailScroll)
+	}
+
+	// 4. Test "pageup" and "pagedown" key aliases (string match)
+	m.detailView = false
+	m.cursor = 0
+	m.height = 16 // listHeight will be 16 - 12 = 4
+
+	// Send "pagedown" alias
+	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("pagedown")})
+	m = newModel.(tuiModel)
+	if m.cursor != 2 { // total layers is 3, boundary cursor is 2
+		t.Errorf("Expected cursor to jump to boundary 2 on 'pagedown' alias, got %d", m.cursor)
+	}
+
+	// Send "pageup" alias
+	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("pageup")})
+	m = newModel.(tuiModel)
+	if m.cursor != 0 {
+		t.Errorf("Expected cursor to return to 0 on 'pageup' alias, got %d", m.cursor)
+	}
+}

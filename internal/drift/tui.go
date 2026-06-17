@@ -147,6 +147,47 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
+	case tea.MouseMsg:
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			if m.detailView {
+				if m.detailScroll > 0 {
+					m.detailScroll--
+				}
+			} else {
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			}
+			return m, nil
+
+		case tea.MouseButtonWheelDown:
+			if m.detailView {
+				filtered := m.getFilteredLayers()
+				if len(filtered) > 0 {
+					layer := filtered[m.cursor]
+					lines := m.getDetailLines(layer)
+					listHeight := m.height - 10
+					if m.height == 0 {
+						listHeight = 15
+					}
+					if listHeight < 3 {
+						listHeight = 3
+					}
+					if m.detailScroll < len(lines)-listHeight {
+						m.detailScroll++
+					}
+				}
+			} else {
+				filtered := m.getFilteredLayers()
+				if m.cursor < len(filtered)-1 {
+					m.cursor++
+				}
+			}
+			return m, nil
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
@@ -209,7 +250,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case "pgup":
+		case "pgup", "pageup":
 			if m.detailView {
 				listHeight := m.height - 10
 				if m.height == 0 {
@@ -237,7 +278,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case "pgdown":
+		case "pgdown", "pagedown":
 			if m.detailView {
 				filtered := m.getFilteredLayers()
 				if len(filtered) > 0 {
