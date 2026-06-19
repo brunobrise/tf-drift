@@ -20,6 +20,7 @@ date: 2026-06-17
 | --- | --- |
 | [Config Selection Workflow](./stories/2026061720540700-config-selection.md) | Workflow story for narrowing detected configs before the worker pool runs. |
 | [Example Status Fixtures Workflow](./stories/2026061720401300-examples-status-fixtures.md) | Workflow story for providerless examples that validate mixed-status reporting. |
+| [Home Path Display Success](./stories/0000019ee1c8ee3b-home-path-display.md) | Success story for shortening home-directory paths with `~` in human-facing output. |
 | [OpenTofu Engine Selection Success](./stories/0000019ee1c12d56-opentofu-engine-selection.md) | Success story for resolving Terraform or OpenTofu once before scanning layers. |
 | [Scheduled Release Automation Workflow](./stories/019ed76d55fe0f64-scheduled-release-automation.md) | Workflow story for daily release automation and the GitHub Actions failure modes it avoids. |
 | [TUI Style System Success](./stories/019ee1b82f880df4-tui-style-system.md) | Success story for centralizing TUI styling while preserving readable status labels and current controls. |

@@ -108,6 +108,7 @@ Selection filters run after `-dir`, `-env`, and `-layer`. Include filters run be
 
 * **Exit Codes**: `0` (clean), `1` (failure), `2` (drift detected).
 * **Logs**: Captured in `tf-drift.log` in TUI mode to prevent screen corruption, or printed to `Stderr` in non-interactive mode.
+* **Displayed paths**: Home-directory paths are shortened with `~` in the TUI and human-readable reports.
 
 ## OpenTofu Notes
 

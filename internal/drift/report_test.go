@@ -32,3 +32,32 @@ func TestReportMarkdownFormat(t *testing.T) {
 		t.Errorf("Expected layer2 and its CLEAN status to be present in markdown")
 	}
 }
+
+func TestReportTextUsesTildeForHomePath(t *testing.T) {
+	results := []ScanResult{
+		{
+			Path: "/Users/alice/project/layer",
+		},
+	}
+
+	output := formatTextWithHome(results, "/Users/alice")
+	if !strings.Contains(output, "~/project/layer") {
+		t.Fatalf("expected tilde path in output, got:\n%s", output)
+	}
+	if strings.Contains(output, "/Users/alice") {
+		t.Fatalf("expected home path to be hidden, got:\n%s", output)
+	}
+}
+
+func TestReportJSONKeepsRawPath(t *testing.T) {
+	results := []ScanResult{
+		{
+			Path: "/Users/alice/project/layer",
+		},
+	}
+
+	output := formatJSON(results)
+	if !strings.Contains(output, `"/Users/alice/project/layer"`) {
+		t.Fatalf("expected raw path in JSON output, got:\n%s", output)
+	}
+}

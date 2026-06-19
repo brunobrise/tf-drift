@@ -2,7 +2,7 @@
 id: 019c0a6b-2800-7abc-b123-456789abcdef
 title: CLI Drift Detection Tool (tf-drift)
 created_at: 2026-06-15T10:31:00Z
-updated_at: 2026-06-19T00:00:00Z
+updated_at: 2026-06-19T12:00:00Z
 date: 2026-06-19
 status: approved
 ---
@@ -33,6 +33,10 @@ The workflow now includes a selection step before workers start.
 * **Filters:** Pressing `f` cycles filters (`ALL` -> `DRIFTED` -> `ERRORS`).
 * **Non-Interactive Fallback:** Fallback to stdout reporting when not executed in a TTY.
 
+## Display Paths
+
+TUI views and human-readable reports shorten paths under the current user's home directory with `~`. This keeps app output readable and avoids displaying `/Users/<name>`, `/home/<name>`, or `/root` in normal UI surfaces. Engine execution, layer selection, rules evaluation, and JSON output keep raw paths for compatibility.
+
 ## Engine Selection
 
 The `-engine` flag selects which executable runs plans:
@@ -58,6 +62,7 @@ OpenTofu-specific suggestions should focus on known migration failures: missing 
 | DEC-003 | 2026-06-15 | Use Charm CLI `bubbletea` | Gold standard for interactive, modern Go terminal interfaces. |
 | DEC-004 | 2026-06-15 | Worker pool reports via `p.Send()` | Safely queues UI updates into the Bubble Tea runtime thread. |
 | DEC-005 | 2026-06-19 | Default `-engine` to `auto` | Supports OpenTofu first when installed while keeping Terraform fallback for existing users. |
+| DEC-006 | 2026-06-19 | Shorten displayed home paths with `~` | Keeps terminal and app output compact without changing execution paths. |
 
 ## References
 * [Bubble Tea Docs](https://github.com/charmbracelet/bubbletea)

@@ -3,11 +3,16 @@ package drift
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 )
 
 // formatMarkdown returns a GFM markdown table of the scan results.
 func formatMarkdown(results []ScanResult) string {
+	return formatMarkdownWithHome(results, userHomeForDisplay())
+}
+
+func formatMarkdownWithHome(results []ScanResult, home string) string {
 	var sb strings.Builder
 	sb.WriteString("## Drift Detection Summary\n\n")
 	sb.WriteString("| Layer Path | Status | Severity / Details |\n")
@@ -19,9 +24,10 @@ func formatMarkdown(results []ScanResult) string {
 	var detailSB strings.Builder
 
 	for _, res := range results {
+		path := homePathForDisplay(res.Path, home)
 		if res.Err != nil {
 			errorLayersCount++
-			_, _ = fmt.Fprintf(&sb, "| `%s` | ❌ ERROR | %v |\n", res.Path, res.Err)
+			_, _ = fmt.Fprintf(&sb, "| `%s` | ❌ ERROR | %v |\n", path, res.Err)
 		} else if len(res.Drifts) > 0 {
 			driftedLayersCount++
 			maxSev := "LOW"
@@ -34,17 +40,17 @@ func formatMarkdown(results []ScanResult) string {
 					maxSev = "MEDIUM"
 				}
 			}
-			_, _ = fmt.Fprintf(&sb, "| `%s` | 🔴 DRIFTED | %d changes (Max: %s) |\n", res.Path, len(res.Drifts), maxSev)
+			_, _ = fmt.Fprintf(&sb, "| `%s` | 🔴 DRIFTED | %d changes (Max: %s) |\n", path, len(res.Drifts), maxSev)
 
 			// Add detailed list
-			_, _ = fmt.Fprintf(&detailSB, "### Layer `%s` Drift Details\n\n", res.Path)
+			_, _ = fmt.Fprintf(&detailSB, "### Layer `%s` Drift Details\n\n", path)
 			for _, d := range res.Drifts {
 				_, _ = fmt.Fprintf(&detailSB, "* **%s** (%s) — Actions: %v\n", d.Address, d.Severity, d.Actions)
 				_, _ = fmt.Fprintf(&detailSB, "  * Changed attributes: `%s`\n", strings.Join(d.ChangedAttributes, "`, `"))
 			}
 			detailSB.WriteString("\n")
 		} else {
-			_, _ = fmt.Fprintf(&sb, "| `%s` | 🟢 CLEAN | — |\n", res.Path)
+			_, _ = fmt.Fprintf(&sb, "| `%s` | 🟢 CLEAN | — |\n", path)
 		}
 	}
 
@@ -96,6 +102,10 @@ func formatJSON(results []ScanResult) string {
 
 // formatSlack returns a simple Slack block-kit compatible text representation.
 func formatSlack(results []ScanResult) string {
+	return formatSlackWithHome(results, userHomeForDisplay())
+}
+
+func formatSlackWithHome(results []ScanResult, home string) string {
 	var sb strings.Builder
 	sb.WriteString("*Terraform/OpenTofu Drift Detection Results:*\n")
 
@@ -103,12 +113,13 @@ func formatSlack(results []ScanResult) string {
 	errors := 0
 
 	for _, res := range results {
+		path := homePathForDisplay(res.Path, home)
 		if res.Err != nil {
 			errors++
-			_, _ = fmt.Fprintf(&sb, "• `%s`: :x: *ERROR* - %v\n", res.Path, res.Err)
+			_, _ = fmt.Fprintf(&sb, "• `%s`: :x: *ERROR* - %v\n", path, res.Err)
 		} else if len(res.Drifts) > 0 {
 			drifted++
-			_, _ = fmt.Fprintf(&sb, "• `%s`: :red_circle: *DRIFTED* (%d changes)\n", res.Path, len(res.Drifts))
+			_, _ = fmt.Fprintf(&sb, "• `%s`: :red_circle: *DRIFTED* (%d changes)\n", path, len(res.Drifts))
 		}
 	}
 
@@ -120,6 +131,10 @@ func formatSlack(results []ScanResult) string {
 
 // formatText returns normal text.
 func formatText(results []ScanResult) string {
+	return formatTextWithHome(results, userHomeForDisplay())
+}
+
+func formatTextWithHome(results []ScanResult, home string) string {
 	var sb strings.Builder
 	sb.WriteString("tf-drift Scan Results:\n")
 	sb.WriteString(strings.Repeat("-", 60) + "\n")
@@ -128,17 +143,18 @@ func formatText(results []ScanResult) string {
 	errors := 0
 
 	for _, res := range results {
+		path := homePathForDisplay(res.Path, home)
 		if res.Err != nil {
 			errors++
-			_, _ = fmt.Fprintf(&sb, "[ERROR]   %s: %v\n", res.Path, res.Err)
+			_, _ = fmt.Fprintf(&sb, "[ERROR]   %s: %v\n", path, res.Err)
 		} else if len(res.Drifts) > 0 {
 			drifted++
-			_, _ = fmt.Fprintf(&sb, "[DRIFTED] %s: %d changes detected\n", res.Path, len(res.Drifts))
+			_, _ = fmt.Fprintf(&sb, "[DRIFTED] %s: %d changes detected\n", path, len(res.Drifts))
 			for _, d := range res.Drifts {
 				_, _ = fmt.Fprintf(&sb, "  - %s (%s)\n", d.Address, d.Severity)
 			}
 		} else {
-			_, _ = fmt.Fprintf(&sb, "[CLEAN]   %s\n", res.Path)
+			_, _ = fmt.Fprintf(&sb, "[CLEAN]   %s\n", path)
 		}
 	}
 
@@ -147,6 +163,14 @@ func formatText(results []ScanResult) string {
 		len(results), drifted, errors)
 
 	return sb.String()
+}
+
+func userHomeForDisplay() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return home
 }
 
 // PrintNonInteractiveReport prints the results to stdout in the selected format.

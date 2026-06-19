@@ -2,7 +2,6 @@ package drift
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -503,17 +502,7 @@ func (m tuiModel) View() string {
 				indicator = "> "
 			}
 
-			// Format relative path for display
-			displayPath := layer
-			if rel, err := filepath.Rel(m.baseDir, layer); err == nil {
-				if rel == "." {
-					displayPath = filepath.Base(layer)
-				} else {
-					displayPath = rel
-				}
-			} else {
-				displayPath = filepath.Clean(layer)
-			}
+			displayPath := layerDisplayPath(m.baseDir, layer)
 
 			var statusText string
 			var styleStatus func(string) string

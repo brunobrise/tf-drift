@@ -268,12 +268,17 @@ func (m selectionModel) selectedLayerList() []string {
 	return selectedLayers
 }
 
-func selectionDisplayPath(baseDir string, layer string) string {
-	if rel, err := filepath.Rel(baseDir, layer); err == nil {
-		if rel == "." {
-			return filepath.Base(layer)
+func selectionDisplayPath(baseDir string, layer string, homeOverride ...string) string {
+	if len(homeOverride) > 0 {
+		if rel, err := filepath.Rel(baseDir, layer); err == nil {
+			if rel == "." {
+				return filepath.Base(layer)
+			}
+			if !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != ".." {
+				return rel
+			}
 		}
-		return rel
+		return homePathForDisplay(layer, homeOverride[0])
 	}
-	return filepath.Clean(layer)
+	return layerDisplayPath(baseDir, layer)
 }
