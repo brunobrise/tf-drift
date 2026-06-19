@@ -2,20 +2,21 @@
 id: 019c0a6b-2800-7abc-b123-456789abcdef
 title: CLI Drift Detection Tool (tf-drift)
 created_at: 2026-06-15T10:31:00Z
-updated_at: 2026-06-15T10:31:00Z
+updated_at: 2026-06-19T00:00:00Z
+date: 2026-06-19
 status: approved
 ---
 
 # CLI Drift Detection Tool (tf-drift)
 
-`tf-drift` is a Go-based CLI tool designed to recursively scan, detect, filter, and display configuration drift across multiple Terraform workspaces/layers in a workspace (like `your-infrastructure-dir`).
+`tf-drift` is a Go-based CLI tool designed to recursively scan, detect, filter, and display configuration drift across multiple Terraform or OpenTofu workspaces/layers in a workspace (like `your-infrastructure-dir`).
 
 ## Architecture & Workflow
 
 The tool operates in four distinct phases:
 1. **Pre-Discovery (Recursive Scanning):** Walk the target directory (defaulting to the current working directory `.`) to identify all directories containing `.tf` files and a backend configuration block.
 2. **Selection:** Apply `-env`, `-layer`, `-include`, and `-exclude`, then optionally show a checkbox picker in interactive mode.
-3. **Parallel Processing (Worker Pool):** Queue selected layers into a concurrent worker pool of a bounded size (configured via `-concurrency`). For each layer, run `terraform init` (if needed) and `terraform plan -detailed-exitcode -lock=false`.
+3. **Parallel Processing (Worker Pool):** Resolve the selected IaC engine, queue selected layers into a concurrent worker pool of a bounded size (configured via `-concurrency`), and for each layer run `<engine> init` (if needed) and `<engine> plan -detailed-exitcode -lock=false`.
 4. **Interactive display (Bubble Tea TUI):** Present a live, modern dashboard indicating active workers, scanning progress, and a scrollable table of layers. Allows filtering by status and expanding drifted layers to inspect detailed changes.
 
 ### Workflow Diagram
@@ -32,15 +33,34 @@ The workflow now includes a selection step before workers start.
 * **Filters:** Pressing `f` cycles filters (`ALL` -> `DRIFTED` -> `ERRORS`).
 * **Non-Interactive Fallback:** Fallback to stdout reporting when not executed in a TTY.
 
+## Engine Selection
+
+The `-engine` flag selects which executable runs plans:
+
+| Value | Behavior |
+| :--- | :--- |
+| `auto` | Default. Prefer `tofu` when present, then fall back to `terraform`. |
+| `terraform` | Require the `terraform` executable. |
+| `opentofu` or `tofu` | Require the `tofu` executable. |
+
+The resolved executable is used consistently for `init`, `plan`, and `show -json`. Error messages must name the selected executable so CI logs explain whether Terraform or OpenTofu failed. Non-interactive runs set `TF_IN_AUTOMATION=1` for child commands.
+
+OpenTofu compatibility depends on the same plan JSON contract used by Terraform-compatible versions. The runner keeps `TF_PLUGIN_CACHE_DIR` behavior and continues to treat `.terraform` as the default data directory because OpenTofu preserves those compatibility surfaces.
+
+OpenTofu-specific suggestions should focus on known migration failures: missing explicit provider source addresses, registry resolution changes, provider version jumps, state encryption key configuration, and saved plan sensitivity.
+
 ## Decision Log
 
 | ID | Date | Decision | Rationale |
 | :--- | :--- | :--- | :--- |
-| DEC-001 | 2026-06-15 | Use native `terraform plan` | Ensures 100% compatibility with custom providers and versions. |
+| DEC-001 | 2026-06-15 | Use native engine `plan` | Ensures compatibility with custom providers and engine versions. |
 | DEC-002 | 2026-06-15 | Default to `-lock=false` | Prevents blocking active deployment pipelines. |
 | DEC-003 | 2026-06-15 | Use Charm CLI `bubbletea` | Gold standard for interactive, modern Go terminal interfaces. |
 | DEC-004 | 2026-06-15 | Worker pool reports via `p.Send()` | Safely queues UI updates into the Bubble Tea runtime thread. |
+| DEC-005 | 2026-06-19 | Default `-engine` to `auto` | Supports OpenTofu first when installed while keeping Terraform fallback for existing users. |
 
 ## References
 * [Bubble Tea Docs](https://github.com/charmbracelet/bubbletea)
 * [Terraform Show JSON Output Format](https://developer.hashicorp.com/terraform/internals/json-format)
+* [OpenTofu Migration Guide](https://opentofu.org/docs/intro/migration/)
+* [OpenTofu Compatibility Promises](https://opentofu.org/docs/language/v1-compatibility-promises/)

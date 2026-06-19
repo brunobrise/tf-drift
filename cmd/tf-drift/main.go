@@ -33,8 +33,9 @@ func main() {
 	tuiStyleFlag := flag.String("tui-style", "", "TUI style (modern|classic|minimal|accessible); defaults to modern or TF_DRIFT_TUI_STYLE")
 	profileOverrideFlag := flag.String("profile-override", "", "Override AWS provider profile and comment out assume_role blocks")
 	localProfileFlag := flag.Bool("local-profile", false, "Comment out assume_role blocks and uncomment existing profiles in provider configs")
-	reconfigureFlag := flag.Bool("reconfigure", false, "Run terraform init with -reconfigure flag")
-	migrateStateFlag := flag.Bool("migrate-state", false, "Run terraform init with -migrate-state flag")
+	engineFlag := flag.String("engine", "auto", "IaC engine to run (auto|terraform|opentofu|tofu)")
+	reconfigureFlag := flag.Bool("reconfigure", false, "Run engine init with -reconfigure flag")
+	migrateStateFlag := flag.Bool("migrate-state", false, "Run engine init with -migrate-state flag")
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 
 	flag.Parse()
@@ -84,7 +85,7 @@ func main() {
 		os.Exit(1)
 	}
 	if len(layers) == 0 {
-		fmt.Println("No Terraform configuration layers selected.")
+		fmt.Println("No Terraform/OpenTofu configuration layers selected.")
 		os.Exit(0)
 	}
 
@@ -99,6 +100,11 @@ func main() {
 
 	// 4. Determine execution mode (TUI vs Non-Interactive)
 	useTUI := !*nonInteractiveFlag && isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stdin.Fd())
+	engine, err := drift.ResolveEngine(*engineFlag)
+	if err != nil {
+		fmt.Printf("Error resolving engine: %v\n", err)
+		os.Exit(1)
+	}
 
 	if useTUI {
 		logFile, err := os.OpenFile("tf-drift.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -128,7 +134,17 @@ func main() {
 	}
 
 	resultsChan := make(chan drift.ScanResult, len(layers))
-	drift.ScanLayers(ctx, layers, rules, *concurrencyFlag, *lockFlag, *profileOverrideFlag, *localProfileFlag, *reconfigureFlag, *migrateStateFlag, resultsChan)
+	options := drift.RunnerOptions{
+		Engine:          engine,
+		LockState:       *lockFlag,
+		ProfileOverride: *profileOverrideFlag,
+		LocalProfile:    *localProfileFlag,
+		Reconfigure:     *reconfigureFlag,
+		MigrateState:    *migrateStateFlag,
+		Automation:      !useTUI,
+	}
+
+	drift.ScanLayers(ctx, layers, rules, *concurrencyFlag, options, resultsChan)
 
 	if !useTUI {
 		// Non-interactive Mode (standard stdout report, good for CI/CD)

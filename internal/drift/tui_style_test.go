@@ -54,7 +54,7 @@ func TestSelectionViewUsesSharedMinimalStyle(t *testing.T) {
 	m.height = 24
 
 	view := m.View()
-	for _, expected := range []string{"Select Terraform configs", "[x] clean-empty", "[Space] Tick", "[Enter] Scan"} {
+	for _, expected := range []string{"Select Terraform/OpenTofu configs", "[x] clean-empty", "[Space] Tick", "[Enter] Scan"} {
 		if !strings.Contains(view, expected) {
 			t.Fatalf("expected minimal selection view to contain %q, got:\n%s", expected, view)
 		}

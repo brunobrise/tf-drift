@@ -70,7 +70,7 @@ func TestSelectionModelViewShowsCheckboxesAndControls(t *testing.T) {
 
 	view := m.View()
 	for _, expected := range []string{
-		"Select Terraform configs",
+		"Select Terraform/OpenTofu configs",
 		"[x] clean-empty",
 		"[Space] Tick",
 		"[Enter] Scan",

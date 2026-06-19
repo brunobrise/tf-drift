@@ -11,7 +11,17 @@ type ScanResult struct {
 	Err    error
 }
 
-type RunnerFunc func(ctx context.Context, dir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool, reconfigure bool, migrateState bool) ([]DriftChange, error)
+type RunnerOptions struct {
+	Engine          ResolvedEngine
+	LockState       bool
+	ProfileOverride string
+	LocalProfile    bool
+	Reconfigure     bool
+	MigrateState    bool
+	Automation      bool
+}
+
+type RunnerFunc func(ctx context.Context, dir string, rules RulesConfig, options RunnerOptions) ([]DriftChange, error)
 
 // ScanLayersWithRunner executes the worker pool using a custom runner (useful for testing).
 func ScanLayersWithRunner(
@@ -19,11 +29,7 @@ func ScanLayersWithRunner(
 	layers []string,
 	rules RulesConfig,
 	concurrency int,
-	lockState bool,
-	profileOverride string,
-	localProfile bool,
-	reconfigure bool,
-	migrateState bool,
+	options RunnerOptions,
 	resultsChan chan<- ScanResult,
 	runner RunnerFunc,
 ) {
@@ -44,7 +50,7 @@ func ScanLayersWithRunner(
 		go func() {
 			defer wg.Done()
 			for path := range tasksChan {
-				drifts, err := runner(ctx, path, rules, lockState, profileOverride, localProfile, reconfigure, migrateState)
+				drifts, err := runner(ctx, path, rules, options)
 				resultsChan <- ScanResult{
 					Path:   path,
 					Drifts: drifts,
@@ -67,12 +73,8 @@ func ScanLayers(
 	layers []string,
 	rules RulesConfig,
 	concurrency int,
-	lockState bool,
-	profileOverride string,
-	localProfile bool,
-	reconfigure bool,
-	migrateState bool,
+	options RunnerOptions,
 	resultsChan chan<- ScanResult,
 ) {
-	ScanLayersWithRunner(ctx, layers, rules, concurrency, lockState, profileOverride, localProfile, reconfigure, migrateState, resultsChan, RunPlan)
+	ScanLayersWithRunner(ctx, layers, rules, concurrency, options, resultsChan, RunPlan)
 }

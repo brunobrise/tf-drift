@@ -174,7 +174,7 @@ func (m selectionModel) View() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString("  " + styles.title.Render("tf-drift") + " - Select Terraform configs\n")
+	b.WriteString("  " + styles.title.Render("tf-drift") + " - Select Terraform/OpenTofu configs\n")
 	_, _ = fmt.Fprintf(&b, "  Selected: %d/%d\n", m.selectedCount(), len(m.layers))
 	if m.message != "" {
 		_, _ = fmt.Fprintf(&b, "  %s\n", styles.warning.Render(m.message))
@@ -183,7 +183,7 @@ func (m selectionModel) View() string {
 	b.WriteString("  " + styles.line(60) + "\n")
 
 	if len(m.layers) == 0 {
-		b.WriteString("  No Terraform configs discovered.\n")
+		b.WriteString("  No Terraform/OpenTofu configs discovered.\n")
 	} else {
 		listHeight := m.listHeight()
 		start := m.cursor - listHeight/2

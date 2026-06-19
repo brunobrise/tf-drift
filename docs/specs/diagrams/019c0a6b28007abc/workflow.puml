@@ -7,6 +7,7 @@ start
 :Scan Target Directory Recursively;
 note right: Finds folders with *.tf files
 :Filter Layers by -env, -layer, -include, -exclude;
+:Resolve -engine (auto|terraform|opentofu);
 if (Interactive?) then (yes)
   :Show checkbox picker;
   :Scan selected layers;
@@ -20,11 +21,11 @@ fork
     :Pop Layer;
     :Check Init State;
     if (Need Init?) then (yes)
-      :Run 'terraform init';
+      :Run '<engine> init';
     endif
-    :Run 'terraform plan -detailed-exitcode -lock=false';
+    :Run '<engine> plan -detailed-exitcode -lock=false';
     if (Detailed Exit Code == 2 (Drift)) then (yes)
-      :Run 'terraform show -json';
+      :Run '<engine> show -json';
       :Parse and Apply rules.json;
     endif
     :Send Result to TUI Loop via p.Send();

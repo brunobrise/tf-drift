@@ -1,14 +1,14 @@
 # tf-drift Examples
 
-These examples exercise the main `tf-drift` statuses without cloud credentials, remote state, or external providers.
+These examples exercise the main `tf-drift` statuses without cloud credentials, remote state, or external providers. They can run with Terraform or OpenTofu.
 
 ## Layout
 
 | Directory | Expected status | Purpose |
 | --- | --- | --- |
-| `clean-empty` | `CLEAN` | Valid Terraform config with no managed resources. |
-| `drift-new-resource` | `DRIFTED` | Valid Terraform config with a built-in `terraform_data` resource that has not been applied. |
-| `error-invalid-config` | `ERROR` | Intentionally invalid Terraform config for error reporting. |
+| `clean-empty` | `CLEAN` | Valid Terraform/OpenTofu config with no managed resources. |
+| `drift-new-resource` | `DRIFTED` | Valid Terraform/OpenTofu config with a built-in `terraform_data` resource that has not been applied. |
+| `error-invalid-config` | `ERROR` | Intentionally invalid Terraform/OpenTofu config for error reporting. |
 
 ## Run All Examples
 

@@ -116,11 +116,16 @@ func setupPluginCache() {
 	}
 }
 
-// RunPlan executes the terraform plan command on the target layer directory.
+// RunPlan executes the selected engine plan command on the target layer directory.
 // It returns a list of detected drift changes, or an error.
-func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState bool, profileOverride string, localProfile bool, reconfigure bool, migrateState bool) ([]DriftChange, error) {
+func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, options RunnerOptions) ([]DriftChange, error) {
+	engine := options.Engine
+	if engine.Binary == "" {
+		engine = ResolvedEngine{Name: "terraform", Binary: "terraform"}
+	}
+
 	// Profile override & local profile support
-	if profileOverride != "" || localProfile {
+	if options.ProfileOverride != "" || options.LocalProfile {
 		files, err := os.ReadDir(layerDir)
 		if err == nil {
 			for _, file := range files {
@@ -130,7 +135,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 					if err == nil {
 						contentStr := string(origContent)
 						if strings.Contains(contentStr, "assume_role") || strings.Contains(contentStr, "profile") {
-							modifiedContent, hasProfile := modifyProviderText(contentStr, profileOverride)
+							modifiedContent, hasProfile := modifyProviderText(contentStr, options.ProfileOverride)
 							if !hasProfile && strings.Contains(contentStr, "assume_role") {
 								log.Printf("Warning: File %s has assume_role commented but no AWS profile was mentioned.", filePath)
 							}
@@ -153,19 +158,22 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 	// 1. Initialize if needed, or if reconfigure/migrateState is requested
 	tfDir := filepath.Join(layerDir, ".terraform")
 	_, statErr := os.Stat(tfDir)
-	if os.IsNotExist(statErr) || reconfigure || migrateState {
+	if os.IsNotExist(statErr) || options.Reconfigure || options.MigrateState {
 		args := []string{"init", "-input=false"}
-		if reconfigure {
+		if options.Reconfigure {
 			args = append(args, "-reconfigure")
 		}
-		if migrateState {
+		if options.MigrateState {
 			args = append(args, "-migrate-state")
 		}
-		cmd := exec.CommandContext(ctx, "terraform", args...)
+		cmd := exec.CommandContext(ctx, engine.Binary, args...)
 		cmd.Dir = layerDir
+		if options.Automation {
+			cmd.Env = append(os.Environ(), "TF_IN_AUTOMATION=1")
+		}
 		// Capture output to prevent corrupting interactive TUI
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("terraform init failed: %s: %w", string(out), err)
+			return nil, fmt.Errorf("%s init failed: %s%s: %w", engine.Binary, string(out), engineFailureHint(engine), err)
 		}
 	}
 
@@ -175,12 +183,15 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 	defer func() { _ = os.Remove(planPath) }()
 
 	args := []string{"plan", "-detailed-exitcode", "-out=" + planFile}
-	if !lockState {
+	if !options.LockState {
 		args = append(args, "-lock=false")
 	}
 
-	cmdPlan := exec.CommandContext(ctx, "terraform", args...)
+	cmdPlan := exec.CommandContext(ctx, engine.Binary, args...)
 	cmdPlan.Dir = layerDir
+	if options.Automation {
+		cmdPlan.Env = append(os.Environ(), "TF_IN_AUTOMATION=1")
+	}
 	planOutput, err := cmdPlan.CombinedOutput()
 
 	exitCode := 0
@@ -188,7 +199,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode = exitError.ExitCode()
 		} else {
-			return nil, fmt.Errorf("terraform plan execution failed: %w", err)
+			return nil, fmt.Errorf("%s plan execution failed: %w", engine.Binary, err)
 		}
 	}
 
@@ -197,15 +208,18 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 		// No changes/drift
 		return nil, nil
 	case 2:
-		// Drift detected. Run terraform show -json to extract diff
-		cmdShow := exec.CommandContext(ctx, "terraform", "show", "-json", planFile)
+		// Drift detected. Run show -json to extract diff.
+		cmdShow := exec.CommandContext(ctx, engine.Binary, "show", "-json", planFile)
 		cmdShow.Dir = layerDir
+		if options.Automation {
+			cmdShow.Env = append(os.Environ(), "TF_IN_AUTOMATION=1")
+		}
 		var stdoutBuf, stderrBuf bytes.Buffer
 		cmdShow.Stdout = &stdoutBuf
 		cmdShow.Stderr = &stderrBuf
 		err := cmdShow.Run()
 		if err != nil {
-			return nil, fmt.Errorf("terraform show failed: %s: %w", stderrBuf.String(), err)
+			return nil, fmt.Errorf("%s show failed: %s%s: %w", engine.Binary, stderrBuf.String(), engineFailureHint(engine), err)
 		}
 		showOutput := stdoutBuf.Bytes()
 
@@ -227,8 +241,15 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, lockState 
 		return filteredChanges, nil
 	default:
 		// Any other exit code is a genuine error
-		return nil, fmt.Errorf("terraform plan failed (exit code %d): %s", exitCode, string(planOutput))
+		return nil, fmt.Errorf("%s plan failed (exit code %d): %s%s", engine.Binary, exitCode, string(planOutput), engineFailureHint(engine))
 	}
+}
+
+func engineFailureHint(engine ResolvedEngine) string {
+	if engine.Name != "opentofu" {
+		return ""
+	}
+	return "\nOpenTofu hint: check explicit provider source addresses, registry resolution, provider version constraints, state encryption keys, and saved plan handling."
 }
 
 // modifyProviderText comments out any assume_role block and injects/uncomments the specified profile.

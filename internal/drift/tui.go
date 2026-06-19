@@ -384,7 +384,7 @@ func (m tuiModel) View() string {
 	// 1. Render Progress Header
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString("  " + styles.title.Render("tf-drift") + " - Terraform Drift Detection\n")
+	b.WriteString("  " + styles.title.Render("tf-drift") + " - Terraform/OpenTofu Drift Detection\n")
 	_, _ = fmt.Fprintf(&b, "  Concurrency: %d workers | Mode: Lock=%t\n\n", m.concurrency, m.lockState)
 
 	// Progress bar calculation

@@ -97,7 +97,7 @@ func formatJSON(results []ScanResult) string {
 // formatSlack returns a simple Slack block-kit compatible text representation.
 func formatSlack(results []ScanResult) string {
 	var sb strings.Builder
-	sb.WriteString("*Terraform Drift Detection Results:*\n")
+	sb.WriteString("*Terraform/OpenTofu Drift Detection Results:*\n")
 
 	drifted := 0
 	errors := 0
