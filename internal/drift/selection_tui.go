@@ -216,7 +216,7 @@ func (m selectionModel) View() string {
 
 			indicator := "  "
 			if idx == m.cursor {
-				indicator = styles.title.Render(">") + " "
+				indicator = "> "
 			}
 
 			displayPath := selectionDisplayPath(m.baseDir, layer)
@@ -226,7 +226,7 @@ func (m selectionModel) View() string {
 
 			rowText := fmt.Sprintf("%s%s %s", indicator, marker, displayPath)
 			if idx == m.cursor {
-				rowText = styles.focus(rowText)
+				rowText = styles.focus(rowText, m.width)
 			}
 			b.WriteString(rowText + "\n")
 		}

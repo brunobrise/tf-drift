@@ -27,10 +27,13 @@ A small semantic style layer can improve TUI polish and accessibility without re
 
 - Focused style tests pass for style resolution, scan view rendering, and selection picker rendering.
 - Existing scan and selection model tests still exercise keyboard, mouse, paging, and detail navigation behavior.
+- Follow-up row highlight tests verify focused rows remain line-separated, pad to the terminal width, and avoid nested styling that resets the highlight before the row text.
 
 ## Reusable Pattern
 
 Future TUI changes should add semantic render helpers before adding more inline terminal escape sequences. Use text labels for meaning first, then color and emphasis as optional reinforcement.
+
+Focused rows should apply one outer row style after all visible text has been assembled. Avoid nested ANSI styles inside selected rows because reset codes can break the highlighted background.
 
 ## Limits
 

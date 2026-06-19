@@ -136,7 +136,10 @@ func (s tuiStyles) muted(value string) string {
 	return s.pending.Render(value)
 }
 
-func (s tuiStyles) focus(row string) string {
+func (s tuiStyles) focus(row string, width int) string {
+	if width > 0 {
+		return s.selected.Width(width).Render(row)
+	}
 	return s.selected.Render(row)
 }
 

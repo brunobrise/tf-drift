@@ -500,7 +500,7 @@ func (m tuiModel) View() string {
 
 			indicator := "  "
 			if idx == m.cursor {
-				indicator = styles.title.Render(">") + " "
+				indicator = "> "
 			}
 
 			// Format relative path for display
@@ -515,10 +515,12 @@ func (m tuiModel) View() string {
 				displayPath = filepath.Clean(layer)
 			}
 
-			var statusStr string
+			var statusText string
+			var styleStatus func(string) string
 			if scanned {
 				if res.Err != nil {
-					statusStr = styles.err("ERROR")
+					statusText = "ERROR"
+					styleStatus = styles.err
 				} else if len(res.Drifts) > 0 {
 					// Count severity levels
 					crits := 0
@@ -535,16 +537,21 @@ func (m tuiModel) View() string {
 						}
 					}
 					if crits > 0 {
-						statusStr = styles.err(fmt.Sprintf("DRIFTED (CRITICAL:%d)", crits))
+						statusText = fmt.Sprintf("DRIFTED (CRITICAL:%d)", crits)
+						styleStatus = styles.err
 					} else if highs > 0 {
-						statusStr = styles.err(fmt.Sprintf("DRIFTED (HIGH:%d)", highs))
+						statusText = fmt.Sprintf("DRIFTED (HIGH:%d)", highs)
+						styleStatus = styles.err
 					} else if meds > 0 {
-						statusStr = styles.drifted(fmt.Sprintf("DRIFTED (MEDIUM:%d)", meds))
+						statusText = fmt.Sprintf("DRIFTED (MEDIUM:%d)", meds)
+						styleStatus = styles.drifted
 					} else {
-						statusStr = styles.drifted(fmt.Sprintf("DRIFTED (LOW:%d)", len(res.Drifts)))
+						statusText = fmt.Sprintf("DRIFTED (LOW:%d)", len(res.Drifts))
+						styleStatus = styles.drifted
 					}
 				} else {
-					statusStr = styles.clean("CLEAN")
+					statusText = "CLEAN"
+					styleStatus = styles.clean
 				}
 			} else {
 				unscannedBefore := 0
@@ -554,9 +561,11 @@ func (m tuiModel) View() string {
 					}
 				}
 				if unscannedBefore < m.concurrency {
-					statusStr = styles.scanning(fmt.Sprintf("SCANNING %s", spin))
+					statusText = fmt.Sprintf("SCANNING %s", spin)
+					styleStatus = styles.scanning
 				} else {
-					statusStr = styles.muted("PENDING")
+					statusText = "PENDING"
+					styleStatus = styles.muted
 				}
 			}
 
@@ -565,10 +574,14 @@ func (m tuiModel) View() string {
 			}
 
 			// Render row
+			statusStr := statusText
+			if idx != m.cursor && styleStatus != nil {
+				statusStr = styleStatus(statusText)
+			}
 			formatStr := fmt.Sprintf("%%s%%-%ds %%s", pathWidth)
 			rowText := fmt.Sprintf(formatStr, indicator, displayPath, statusStr)
 			if idx == m.cursor {
-				b.WriteString(styles.focus(rowText) + "\n")
+				b.WriteString(styles.focus(rowText, m.width) + "\n")
 			} else {
 				b.WriteString(rowText + "\n")
 			}
