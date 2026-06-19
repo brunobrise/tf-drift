@@ -72,6 +72,7 @@ See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers
 | `-lock` | bool | `false` | Enable state locking. |
 | `-rules` | string | `rules.json` | Path to rules configuration. |
 | `-non-interactive` | bool | `false` | Disable TUI mode. |
+| `-tui-style` | string | `modern` | Interactive TUI style (`modern`, `classic`, `minimal`, `accessible`). Can also be set with `TF_DRIFT_TUI_STYLE`; `NO_COLOR` forces `minimal`. |
 | `-profile-override` | string | `""` | Override AWS profile and comment out `assume_role`. |
 | `-local-profile` | bool | `false` | Comment out `assume_role` and uncomment existing profiles. |
 | `-reconfigure` | bool | `false` | Run `terraform init` with `-reconfigure`. |

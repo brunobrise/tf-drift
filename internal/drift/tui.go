@@ -32,9 +32,15 @@ type tuiModel struct {
 	width        int
 	detailScroll int
 	baseDir      string
+	styleName    tuiStyleName
+	styles       tuiStyles
 }
 
 func initialModel(layers []string, rules RulesConfig, concurrency int, lockState bool, baseDir string) tuiModel {
+	return initialModelWithStyle(layers, rules, concurrency, lockState, baseDir, tuiStyleModern)
+}
+
+func initialModelWithStyle(layers []string, rules RulesConfig, concurrency int, lockState bool, baseDir string, styleName tuiStyleName) tuiModel {
 	return tuiModel{
 		layers:       layers,
 		results:      make(map[string]ScanResult),
@@ -52,11 +58,17 @@ func initialModel(layers []string, rules RulesConfig, concurrency int, lockState
 		width:        0,
 		detailScroll: 0,
 		baseDir:      baseDir,
+		styleName:    styleName,
+		styles:       newTUIStyles(styleName),
 	}
 }
 
 func InitialModel(layers []string, rules RulesConfig, concurrency int, lockState bool, baseDir string) tea.Model {
 	return initialModel(layers, rules, concurrency, lockState, baseDir)
+}
+
+func InitialModelWithStyle(layers []string, rules RulesConfig, concurrency int, lockState bool, baseDir string, styleName tuiStyleName) tea.Model {
+	return initialModelWithStyle(layers, rules, concurrency, lockState, baseDir, styleName)
 }
 
 func (m tuiModel) Init() tea.Cmd {
@@ -89,6 +101,11 @@ func (m tuiModel) getFilteredLayers() []string {
 
 // getDetailLines constructs the detail representation lines for a layer.
 func (m tuiModel) getDetailLines(layer string) []string {
+	styles := m.styles
+	if styles.name == "" {
+		styles = newTUIStyles(tuiStyleModern)
+	}
+
 	res, ok := m.results[layer]
 	if !ok {
 		return []string{"  No results yet."}
@@ -105,19 +122,18 @@ func (m tuiModel) getDetailLines(layer string) []string {
 	} else {
 		lines = append(lines, "  Detected Drifts:", "")
 		for i, drift := range res.Drifts {
-			// Colored Severity
-			sevColor := "32" // default Green (LOW)
+			severity := styles.clean(drift.Severity)
 			switch drift.Severity {
 			case "CRITICAL":
-				sevColor = "1;31" // bold red
+				severity = styles.err(drift.Severity)
 			case "HIGH":
-				sevColor = "31" // red
+				severity = styles.err(drift.Severity)
 			case "MEDIUM":
-				sevColor = "33" // yellow
+				severity = styles.drifted(drift.Severity)
 			}
 
-			lines = append(lines, fmt.Sprintf("  %d. \033[1m%s\033[0m (\033[%sm%s\033[0m)",
-				i+1, drift.Address, sevColor, drift.Severity))
+			lines = append(lines, fmt.Sprintf("  %d. %s (%s)",
+				i+1, styles.accent.Render(drift.Address), severity))
 			lines = append(lines, fmt.Sprintf("     Actions: %v", drift.Actions))
 			lines = append(lines, fmt.Sprintf("     Changed attributes: %s", strings.Join(drift.ChangedAttributes, ", ")))
 			lines = append(lines, "")
@@ -360,10 +376,15 @@ func (m tuiModel) View() string {
 		return "Exiting tf-drift...\n"
 	}
 
+	styles := m.styles
+	if styles.name == "" {
+		styles = newTUIStyles(tuiStyleModern)
+	}
+
 	// 1. Render Progress Header
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString("  \033[1;36mtf-drift\033[0m — Terraform Drift Detection\n")
+	b.WriteString("  " + styles.title.Render("tf-drift") + " - Terraform Drift Detection\n")
 	_, _ = fmt.Fprintf(&b, "  Concurrency: %d workers | Mode: Lock=%t\n\n", m.concurrency, m.lockState)
 
 	// Progress bar calculation
@@ -384,7 +405,7 @@ func (m tuiModel) View() string {
 	}
 
 	spinnerFrames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	spin := "✔"
+	spin := "done"
 	if m.processed < m.total {
 		spin = spinnerFrames[m.spinnerTick%len(spinnerFrames)]
 	}
@@ -401,8 +422,8 @@ func (m tuiModel) View() string {
 		}
 
 		layer := filtered[m.cursor]
-		_, _ = fmt.Fprintf(&b, "  \033[1;33mInspector — %s\033[0m\n", layer)
-		b.WriteString("  " + strings.Repeat("─", 60) + "\n")
+		_, _ = fmt.Fprintf(&b, "  %s\n", styles.warning.Render("Inspector - "+layer))
+		b.WriteString("  " + styles.line(60) + "\n")
 
 		lines := m.getDetailLines(layer)
 
@@ -435,8 +456,8 @@ func (m tuiModel) View() string {
 	}
 
 	// 3. Render List View
-	_, _ = fmt.Fprintf(&b, "  \033[1;37mActive Filter: %s\033[0m (%d layers shown)\n", m.filter, len(filtered))
-	b.WriteString("  " + strings.Repeat("─", 60) + "\n")
+	_, _ = fmt.Fprintf(&b, "  %s (%d layers shown)\n", styles.accent.Render("Active Filter: "+m.filter), len(filtered))
+	b.WriteString("  " + styles.line(60) + "\n")
 
 	if len(filtered) == 0 {
 		b.WriteString("  No layers match the current filter.\n")
@@ -479,7 +500,7 @@ func (m tuiModel) View() string {
 
 			indicator := "  "
 			if idx == m.cursor {
-				indicator = "\033[1;36m> \033[0m"
+				indicator = styles.title.Render(">") + " "
 			}
 
 			// Format relative path for display
@@ -497,7 +518,7 @@ func (m tuiModel) View() string {
 			var statusStr string
 			if scanned {
 				if res.Err != nil {
-					statusStr = "\033[1;31mERROR\033[0m"
+					statusStr = styles.err("ERROR")
 				} else if len(res.Drifts) > 0 {
 					// Count severity levels
 					crits := 0
@@ -514,16 +535,16 @@ func (m tuiModel) View() string {
 						}
 					}
 					if crits > 0 {
-						statusStr = fmt.Sprintf("\033[1;31mDRIFTED (CRITICAL:%d)\033[0m", crits)
+						statusStr = styles.err(fmt.Sprintf("DRIFTED (CRITICAL:%d)", crits))
 					} else if highs > 0 {
-						statusStr = fmt.Sprintf("\033[31mDRIFTED (HIGH:%d)\033[0m", highs)
+						statusStr = styles.err(fmt.Sprintf("DRIFTED (HIGH:%d)", highs))
 					} else if meds > 0 {
-						statusStr = fmt.Sprintf("\033[33mDRIFTED (MEDIUM:%d)\033[0m", meds)
+						statusStr = styles.drifted(fmt.Sprintf("DRIFTED (MEDIUM:%d)", meds))
 					} else {
-						statusStr = fmt.Sprintf("\033[32mDRIFTED (LOW:%d)\033[0m", len(res.Drifts))
+						statusStr = styles.drifted(fmt.Sprintf("DRIFTED (LOW:%d)", len(res.Drifts)))
 					}
 				} else {
-					statusStr = "\033[32mCLEAN\033[0m"
+					statusStr = styles.clean("CLEAN")
 				}
 			} else {
 				unscannedBefore := 0
@@ -533,9 +554,9 @@ func (m tuiModel) View() string {
 					}
 				}
 				if unscannedBefore < m.concurrency {
-					statusStr = fmt.Sprintf("\033[36mSCANNING %s\033[0m", spin)
+					statusStr = styles.scanning(fmt.Sprintf("SCANNING %s", spin))
 				} else {
-					statusStr = "\033[90mPENDING\033[0m"
+					statusStr = styles.muted("PENDING")
 				}
 			}
 
@@ -544,19 +565,17 @@ func (m tuiModel) View() string {
 			}
 
 			// Render row
-			formatStr := fmt.Sprintf("%%s%%-%ds %%s\n", pathWidth)
+			formatStr := fmt.Sprintf("%%s%%-%ds %%s", pathWidth)
 			rowText := fmt.Sprintf(formatStr, indicator, displayPath, statusStr)
 			if idx == m.cursor {
-				highlightBg := "\033[48;5;238m"
-				highlightedRow := highlightBg + strings.ReplaceAll(rowText, "\033[0m", "\033[0m"+highlightBg) + "\033[0m"
-				b.WriteString(highlightedRow)
+				b.WriteString(styles.focus(rowText) + "\n")
 			} else {
-				b.WriteString(rowText)
+				b.WriteString(rowText + "\n")
 			}
 		}
 	}
 
-	b.WriteString("  " + strings.Repeat("─", 60) + "\n")
+	b.WriteString("  " + styles.line(60) + "\n")
 	b.WriteString("  [q] Quit  [f] Filter  [Enter] View Details  [↑/↓] Scroll\n")
 
 	return b.String()

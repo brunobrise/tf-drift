@@ -30,6 +30,7 @@ func main() {
 	lockFlag := flag.Bool("lock", false, "Enable state locking")
 	rulesFlag := flag.String("rules", "rules.json", "Path to the rules configuration file")
 	nonInteractiveFlag := flag.Bool("non-interactive", false, "Force disable TUI")
+	tuiStyleFlag := flag.String("tui-style", "", "TUI style (modern|classic|minimal|accessible); defaults to modern or TF_DRIFT_TUI_STYLE")
 	profileOverrideFlag := flag.String("profile-override", "", "Override AWS provider profile and comment out assume_role blocks")
 	localProfileFlag := flag.Bool("local-profile", false, "Comment out assume_role blocks and uncomment existing profiles in provider configs")
 	reconfigureFlag := flag.Bool("reconfigure", false, "Run terraform init with -reconfigure flag")
@@ -114,7 +115,8 @@ func main() {
 	}
 
 	if useTUI {
-		selectedLayers, proceed, err := drift.RunLayerSelection(layers, displayBaseDir)
+		tuiStyle := drift.ResolveTUIStyle(*tuiStyleFlag)
+		selectedLayers, proceed, err := drift.RunLayerSelectionWithStyle(layers, displayBaseDir, tuiStyle)
 		if err != nil {
 			fmt.Printf("Error running selection TUI: %v\n", err)
 			os.Exit(1)
@@ -158,7 +160,8 @@ func main() {
 	}
 
 	// TUI Mode
-	m := drift.InitialModel(layers, rules, *concurrencyFlag, *lockFlag, displayBaseDir)
+	tuiStyle := drift.ResolveTUIStyle(*tuiStyleFlag)
+	m := drift.InitialModelWithStyle(layers, rules, *concurrencyFlag, *lockFlag, displayBaseDir, tuiStyle)
 	p := tea.NewProgram(m, tea.WithMouseCellMotion())
 
 	// Goroutine to forward progress from workers channel to Bubble Tea program loop

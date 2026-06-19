@@ -1,0 +1,36 @@
+@startuml
+skinparam backgroundColor transparent
+skinparam defaultFontName sans-serif
+skinparam activity {
+  BackgroundColor #F7F9FC
+  BorderColor #2F3A4A
+  FontColor #111827
+}
+skinparam ArrowColor #2F3A4A
+skinparam note {
+  BackgroundColor #FFF7ED
+  BorderColor #9A3412
+  FontColor #111827
+}
+
+start
+:Read CLI flag and
+TF_DRIFT_TUI_STYLE;
+if (NO_COLOR set?) then (yes)
+  :Use minimal no-color style;
+else (no)
+  if (style known?) then (yes)
+    :Use requested style palette;
+  else (no)
+    :Fall back to modern style;
+  endif
+endif
+:Render semantic status labels;
+:Render scan list and selection picker
+with shared styles;
+note right
+Color never carries the only meaning.
+Status labels remain readable as text.
+end note
+stop
+@enduml
