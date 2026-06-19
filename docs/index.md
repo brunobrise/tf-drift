@@ -24,3 +24,4 @@ date: 2026-06-17
 | [OpenTofu Engine Selection Success](./stories/0000019ee1c12d56-opentofu-engine-selection.md) | Success story for resolving Terraform or OpenTofu once before scanning layers. |
 | [Scheduled Release Automation Workflow](./stories/019ed76d55fe0f64-scheduled-release-automation.md) | Workflow story for daily release automation and the GitHub Actions failure modes it avoids. |
 | [TUI Style System Success](./stories/019ee1b82f880df4-tui-style-system.md) | Success story for centralizing TUI styling while preserving readable status labels and current controls. |
+| [Version Reporting Success](./stories/019ee1cb66012699-version-reporting.md) | Success story for consistent release and source-build version output through `-version` and `-v`. |

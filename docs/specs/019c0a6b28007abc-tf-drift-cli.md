@@ -2,7 +2,7 @@
 id: 019c0a6b-2800-7abc-b123-456789abcdef
 title: CLI Drift Detection Tool (tf-drift)
 created_at: 2026-06-15T10:31:00Z
-updated_at: 2026-06-19T12:00:00Z
+updated_at: 2026-06-19T21:31:07Z
 date: 2026-06-19
 status: approved
 ---
@@ -53,6 +53,12 @@ OpenTofu compatibility depends on the same plan JSON contract used by Terraform-
 
 OpenTofu-specific suggestions should focus on known migration failures: missing explicit provider source addresses, registry resolution changes, provider version jumps, state encryption key configuration, and saved plan sensitivity.
 
+## Version Reporting
+
+The CLI exposes `-version` and `-v` as aliases. Both print `tf-drift <version>` and exit before discovery or engine resolution.
+
+Official release binaries receive the exact release tag from GoReleaser through `-ldflags "-X main.version={{.Version}}"`, so `tf-drift -version` reports values such as `tf-drift v1.0.0`. Local `make build` and `make install` inject `git describe --tags --always --dirty` so source builds report the nearest tag, commit, and dirty marker instead of plain `dev`.
+
 ## Decision Log
 
 | ID | Date | Decision | Rationale |
@@ -63,6 +69,7 @@ OpenTofu-specific suggestions should focus on known migration failures: missing 
 | DEC-004 | 2026-06-15 | Worker pool reports via `p.Send()` | Safely queues UI updates into the Bubble Tea runtime thread. |
 | DEC-005 | 2026-06-19 | Default `-engine` to `auto` | Supports OpenTofu first when installed while keeping Terraform fallback for existing users. |
 | DEC-006 | 2026-06-19 | Shorten displayed home paths with `~` | Keeps terminal and app output compact without changing execution paths. |
+| DEC-007 | 2026-06-19 | Keep version reporting build-time driven | Release tags come from GoReleaser ldflags, while source builds use git metadata without runtime git calls. |
 
 ## References
 * [Bubble Tea Docs](https://github.com/charmbracelet/bubbletea)

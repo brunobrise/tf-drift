@@ -36,12 +36,13 @@ func main() {
 	engineFlag := flag.String("engine", "auto", "IaC engine to run (auto|terraform|opentofu|tofu)")
 	reconfigureFlag := flag.Bool("reconfigure", false, "Run engine init with -reconfigure flag")
 	migrateStateFlag := flag.Bool("migrate-state", false, "Run engine init with -migrate-state flag")
-	versionFlag := flag.Bool("version", false, "Print version and exit")
+	versionFlag := false
+	registerVersionFlags(flag.CommandLine, &versionFlag)
 
 	flag.Parse()
 
-	if *versionFlag {
-		fmt.Printf("tf-drift %s\n", version)
+	if versionFlag {
+		fmt.Printf("tf-drift %s\n", resolvedVersion())
 		os.Exit(0)
 	}
 

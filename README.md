@@ -32,8 +32,11 @@ git clone https://github.com/brunobrise/tf-drift.git
 cd tf-drift
 make build
 
-# Install globally
-go build -o ~/.local/bin/tf-drift
+# Verify embedded version
+./tf-drift -version
+
+# Install globally with embedded version metadata
+make install
 ```
 
 ## Quick Start
@@ -86,6 +89,8 @@ See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers
 | `-engine` | string | `auto` | IaC engine to run (`auto`, `terraform`, `opentofu`, `tofu`). |
 | `-reconfigure` | bool | `false` | Run engine `init` with `-reconfigure`. |
 | `-migrate-state` | bool | `false` | Run engine `init` with `-migrate-state`. |
+| `-version` | bool | `false` | Print the embedded version and exit. |
+| `-v` | bool | `false` | Alias for `-version`. |
 
 Selection filters run after `-dir`, `-env`, and `-layer`. Include filters run before exclude filters and preserve discovery order.
 

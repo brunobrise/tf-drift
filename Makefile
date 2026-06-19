@@ -2,14 +2,16 @@
 
 # Variables
 BINARY_NAME=tf-drift
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -s -w -X main.version=$(VERSION)
 
 all: test build
 
 build:
-	go build -o $(BINARY_NAME) ./cmd/tf-drift
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) ./cmd/tf-drift
 
 install:
-	go install ./cmd/tf-drift
+	go install -ldflags "$(LDFLAGS)" ./cmd/tf-drift
 
 test:
 	go test -v ./...
