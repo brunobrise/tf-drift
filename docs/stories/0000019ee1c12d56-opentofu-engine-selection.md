@@ -1,7 +1,7 @@
 ---
-date: 2026-06-19
+date: 2026-06-22
 type: success
-status: draft
+status: validated
 related_specs:
   - ../specs/019c0a6b28007abc-tf-drift-cli.md
 ---
@@ -30,7 +30,7 @@ Resolve the engine once before workers start, then pass the resolved executable 
 
 ## Evidence
 
-Validation should cover engine resolution, worker propagation, CLI flag behavior, and the existing runner JSON parser.
+Validation covers engine resolution, worker propagation, CLI flag behavior, runner JSON parsing, and OpenTofu-specific plan JSON fixtures for deposed replacement drift, provider names under `registry.opentofu.org`, import metadata, unknown values, and read-only data source changes that should not count as drift.
 
 ## Limits
 

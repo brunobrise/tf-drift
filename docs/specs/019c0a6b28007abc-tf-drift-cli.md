@@ -17,7 +17,7 @@ The tool operates in four distinct phases:
 1. **Pre-Discovery (Recursive Scanning):** Walk the target directory (defaulting to the current working directory `.`) to identify all directories containing `.tf` files and a backend configuration block.
 2. **Selection:** Apply `-env`, `-layer`, `-include`, and `-exclude`, then optionally show a checkbox picker in interactive mode.
 3. **Parallel Processing (Worker Pool):** Resolve the selected IaC engine, queue selected layers into a concurrent worker pool of a bounded size (configured via `-concurrency`), and for each layer run `<engine> init` (if needed), `<engine> plan -detailed-exitcode -lock=false`, and `<engine> show -json` when the plan exits with code `2`.
-4. **Classification and display:** Parse structured plan JSON. Classify `resource_drift` entries as `EXTERNAL_DRIFT` and ordinary `resource_changes` entries as `PLANNED_CHANGE`, then apply the selected `-mode` filter before reporting. Interactive mode presents a live Bubble Tea dashboard; non-interactive mode emits text, JSON, markdown, or Slack output.
+4. **Classification and display:** Parse structured plan JSON. Classify `resource_drift` entries as `EXTERNAL_DRIFT` and ordinary `resource_changes` entries as `PLANNED_CHANGE`, then apply the selected `-mode` filter before reporting. Interactive mode presents a live Bubble Tea dashboard; non-interactive mode emits text, JSON, markdown, Slack, or SARIF output.
 
 ### Workflow Diagram
 
@@ -65,6 +65,47 @@ The `-mode` flag controls which classified changes are returned and therefore wh
 
 When the same resource address appears in both `resource_drift` and `resource_changes`, `tf-drift` reports the `EXTERNAL_DRIFT` entry and skips the same-address planned entry. This avoids double-counting drift remediation as an ordinary pending config change.
 
+## Non-Interactive Output
+
+The `-format` flag supports:
+
+| Value | Behavior |
+| :--- | :--- |
+| `text` | Human-readable stdout summary for local runs and plain CI logs. |
+| `json` | Structured machine-readable result list with raw paths, status, counts, and classified changes. |
+| `markdown` | GitHub-flavored table with detail sections for comments and release notes. |
+| `slack` | Slack-oriented text with status icons and a scan summary. |
+| `sarif` | SARIF 2.1.0 log for GitHub code scanning and CI annotation uploads. |
+
+SARIF output treats layer errors as execution errors, external drift as `tf-drift.external-drift`, and pending config changes as `tf-drift.planned-change`. Severity maps to SARIF levels with `CRITICAL` and `HIGH` as `error`, `MEDIUM` as `warning`, and `LOW` as `note`.
+
+## Rules Configuration
+
+Rules keep backward compatibility with `severity_classification`, where a resource type maps directly to a severity. Ordered `severity_rules` add predicates for more precise classification:
+
+| Predicate | Match |
+| :--- | :--- |
+| `resource_types` | Terraform/OpenTofu resource type such as `aws_iam_policy`. |
+| `attributes` | Any changed top-level attribute. |
+| `actions` | Any managed action from the plan JSON, such as `create`, `update`, or `delete`. |
+| `classifications` | `EXTERNAL_DRIFT` or `PLANNED_CHANGE`. |
+| `layer_patterns` | Glob pattern against the slash-normalized layer path. |
+| `address_patterns` | Glob pattern against the resource address. |
+
+All configured predicates on a rule must match. The first matching rule wins, then `severity_classification`, then the default `MEDIUM` severity.
+
+## Large Monorepo Layouts
+
+Large infrastructure repositories should run against explicit directory sets instead of the whole repository root when teams need faster, more reviewable output. `-dir` accepts direct directories, glob patterns, and brace choices, then discovery finds backend-enabled Terraform/OpenTofu config layers under each resolved root. Typical layouts:
+
+```bash
+tf-drift -dir "infra/{prod,stage}/aws" -include "network,shared-*"
+tf-drift -dir "platform/accounts/*" -exclude "sandbox-*"
+tf-drift -dir "services/*/infra" -mode drift -format sarif
+```
+
+Selection filters run after discovery and preserve discovery order. Use `-include` to build focused CI jobs for owned layers, `-exclude` to remove noisy sandboxes or generated fixtures, and `-mode drift` when CI should annotate external drift without failing on ordinary unmerged config changes.
+
 ## Version Reporting
 
 The CLI exposes `-version` and `-v` as aliases. Both print `tf-drift <version>` and exit before discovery or engine resolution.
@@ -83,6 +124,7 @@ Official release binaries receive the exact release tag from GoReleaser through 
 | DEC-006 | 2026-06-19 | Shorten displayed home paths with `~` | Keeps terminal and app output compact without changing execution paths. |
 | DEC-007 | 2026-06-19 | Keep version reporting build-time driven | Release tags come from GoReleaser ldflags, while source builds use git metadata without runtime git calls. |
 | DEC-008 | 2026-06-22 | Split external drift from pending plan changes | Terraform plan JSON exposes `resource_drift` separately from `resource_changes`, so reports should classify them instead of labeling every non-no-op plan delta as drift. |
+| DEC-009 | 2026-06-22 | Add SARIF and severity predicates | CI annotations need a standard upload format, while teams need severity rules that can include layer, action, classification, address, and changed attributes. |
 
 ## References
 * [Bubble Tea Docs](https://github.com/charmbracelet/bubbletea)
