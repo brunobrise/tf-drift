@@ -53,7 +53,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/brunobrise/tf-drift"
-    description: "Go utility to detect, filter, and inspect configuration drift across multi-layered Terraform workspaces."
+    description: "Terraform/OpenTofu drift scanner for layered workspaces."
     license: "MIT"
     install: |
       bin.install "tf-drift"

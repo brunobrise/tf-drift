@@ -1,6 +1,6 @@
 # Contributing to tf-drift
 
-Thank you for your interest in contributing to `tf-drift`! We welcome community contributions to help improve this utility.
+Thank you for your interest in contributing to `tf-drift`! We welcome focused community contributions that improve drift detection, Terraform/OpenTofu compatibility, reporting, documentation, and release quality.
 
 ---
 
@@ -39,6 +39,9 @@ go fmt ./...
 ### Maximum File Size
 To maintain codebase readability, please keep Go files under **420 lines of code** (excluding tests).
 
+### Scope
+Keep pull requests small and reviewable. Large feature work should start as an issue that describes the use case, expected CLI behavior, and any Terraform/OpenTofu compatibility concerns.
+
 ---
 
 ## 3. Running Tests
@@ -48,6 +51,12 @@ We prioritize high test coverage. Ensure all unit tests pass locally before prop
 ```bash
 # Run tests recursively with the race detector
 go test -race -v ./...
+```
+
+For CLI or TUI changes, also run at least one manual scan against `examples/`:
+
+```bash
+go run ./cmd/tf-drift -dir examples -non-interactive || true
 ```
 
 ---
@@ -74,3 +83,9 @@ Every commit message must fit on a **single line** and follow this pattern:
 * **DO NOT** use `git add .` or similar commands to stage everything blindly. Only stage files you explicitly modified.
 * **DO NOT** commit with a multi-line body, co-authors, or "Co-Authored-By" tags.
 * **DO NOT** use `--no-verify`.
+
+---
+
+## 5. Maintainer Expectations
+
+Maintainers review issues and pull requests as capacity allows. Security reports should follow `SECURITY.md`; please do not disclose vulnerabilities in public issues.
