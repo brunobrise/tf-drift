@@ -1,6 +1,13 @@
 # tf-drift
 
 <p align="center">
+  <a href="https://github.com/brunobrise/tf-drift/actions/workflows/ci.yml"><img src="https://github.com/brunobrise/tf-drift/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/brunobrise/tf-drift/releases/latest"><img src="https://img.shields.io/github/v/release/brunobrise/tf-drift?sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/brunobrise/tf-drift/blob/main/LICENSE"><img src="https://img.shields.io/github/license/brunobrise/tf-drift" alt="License"></a>
+  <a href="https://pkg.go.dev/github.com/brunobrise/tf-drift"><img src="https://pkg.go.dev/badge/github.com/brunobrise/tf-drift.svg" alt="Go Reference"></a>
+</p>
+
+<p align="center">
   <a href="https://go.dev"><img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go"></a>
   <a href="https://github.com/charmbracelet/bubbletea"><img src="https://img.shields.io/badge/TUI-Bubble%20Tea-indigo?style=for-the-badge&logo=appveyor" alt="Bubble Tea TUI"></a>
   <a href="https://www.terraform.io"><img src="https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform&logoColor=white" alt="Terraform"></a>
@@ -8,6 +15,18 @@
 </p>
 
 `tf-drift` is a Go utility to detect, filter, and inspect external infrastructure drift and pending Terraform/OpenTofu plan changes across multi-layered workspaces concurrently. It features an interactive, height-adaptive TUI and a non-interactive mode for CI/CD.
+
+<p align="center">
+  <img src="docs/img/tf-drift.png" alt="tf-drift terminal UI showing clean, drifted, and error layers">
+</p>
+
+## Highlights
+
+* Detects external drift from Terraform/OpenTofu plan JSON `resource_drift`.
+* Separates external drift from ordinary pending plan changes.
+* Scans layered workspaces concurrently with include/exclude filters.
+* Runs as an interactive Bubble Tea TUI or CI-friendly non-interactive command.
+* Emits text, JSON, Markdown, and Slack-oriented reports.
 
 ## Installation
 
@@ -125,3 +144,12 @@ OpenTofu support uses the same execution flow as Terraform: `init`, `plan -detai
 ## Release Automation
 
 Releases are built with GoReleaser and published to GitHub Releases and the Homebrew tap. The release workflow runs daily at midnight UTC and only publishes when new commits exist after the latest stable `vX.Y.Z` tag. See `SETUP.md` for release credentials, manual release options, and recovery steps.
+
+## Project Links
+
+* [Documentation](docs/index.md)
+* [Examples](examples/README.md)
+* [Changelog](CHANGELOG.md)
+* [Roadmap](ROADMAP.md)
+* [Security policy](SECURITY.md)
+* [Contributing guide](CONTRIBUTING.md)

@@ -1,6 +1,10 @@
 /tf-drift
 /tfplan
 /tf-drift.log
+.DS_Store
+**/.DS_Store
 **/.terraform/
 **/.terraform.lock.hcl
 **/tfplan
+**/*.tfstate
+**/*.tfstate.backup
