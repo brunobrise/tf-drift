@@ -2,8 +2,8 @@
 id: 019ee1b82f880df4
 title: TUI Style System
 created_at: 2026-06-19T00:00:00Z
-updated_at: 2026-06-19T00:00:00Z
-date: 2026-06-19
+updated_at: 2026-06-22T00:00:00Z
+date: 2026-06-22
 status: approved
 ---
 
@@ -27,7 +27,7 @@ The style resolver reads a CLI flag and environment variable, falls back predict
 
 - Add a shared style system for scan and selection TUIs.
 - Add a public CLI option for selecting the style.
-- Keep status labels textual: `CLEAN`, `DRIFTED`, `ERROR`, `SCANNING`, and `PENDING`.
+- Keep status labels textual: `CLEAN`, `DRIFTED`, `PLANNED`, `ERROR`, `SCANNING`, and `PENDING`. Mixed drift/plan rows may use compact count labels such as `DRIFT:1 PLAN:2`.
 - Keep current TUI controls and state transitions.
 - Keep non-interactive reports unchanged.
 

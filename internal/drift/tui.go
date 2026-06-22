@@ -21,7 +21,7 @@ type tuiModel struct {
 	total        int
 	concurrency  int
 	cursor       int
-	filter       string // "ALL", "DRIFTED", "ERRORS"
+	filter       string // "ALL", "CHANGES", "ERRORS"
 	rules        RulesConfig
 	detailView   bool
 	lockState    bool
@@ -83,7 +83,7 @@ func (m tuiModel) getFilteredLayers() []string {
 		res, scanned := m.results[layer]
 
 		switch m.filter {
-		case "DRIFTED":
+		case "CHANGES":
 			if scanned && res.Err == nil && len(res.Drifts) > 0 {
 				filtered = append(filtered, layer)
 			}
@@ -117,9 +117,9 @@ func (m tuiModel) getDetailLines(layer string) []string {
 			lines = append(lines, "  "+el)
 		}
 	} else if len(res.Drifts) == 0 {
-		lines = append(lines, "  No configuration drift detected in this layer.")
+		lines = append(lines, "  No selected drift or planned changes detected in this layer.")
 	} else {
-		lines = append(lines, "  Detected Drifts:", "")
+		lines = append(lines, "  Detected Changes:", "")
 		for i, drift := range res.Drifts {
 			severity := styles.clean(drift.Severity)
 			switch drift.Severity {
@@ -131,10 +131,13 @@ func (m tuiModel) getDetailLines(layer string) []string {
 				severity = styles.drifted(drift.Severity)
 			}
 
-			lines = append(lines, fmt.Sprintf("  %d. %s (%s)",
-				i+1, styles.accent.Render(drift.Address), severity))
+			lines = append(lines, fmt.Sprintf("  %d. [%s] %s (%s)",
+				i+1, drift.Classification, styles.accent.Render(drift.Address), severity))
 			lines = append(lines, fmt.Sprintf("     Actions: %v", drift.Actions))
 			lines = append(lines, fmt.Sprintf("     Changed attributes: %s", strings.Join(drift.ChangedAttributes, ", ")))
+			if drift.ActionReason != "" {
+				lines = append(lines, fmt.Sprintf("     Reason: %s", drift.ActionReason))
+			}
 			lines = append(lines, "")
 		}
 	}
@@ -334,11 +337,11 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "f":
-			// Cycle filters: ALL -> DRIFTED -> ERRORS -> ALL
+			// Cycle filters: ALL -> CHANGES -> ERRORS -> ALL
 			switch m.filter {
 			case "ALL":
-				m.filter = "DRIFTED"
-			case "DRIFTED":
+				m.filter = "CHANGES"
+			case "CHANGES":
 				m.filter = "ERRORS"
 			case "ERRORS":
 				m.filter = "ALL"
@@ -515,6 +518,7 @@ func (m tuiModel) View() string {
 					crits := 0
 					highs := 0
 					meds := 0
+					externalDrifts, plannedChanges := changeCounts(res)
 					for _, d := range res.Drifts {
 						switch d.Severity {
 						case "CRITICAL":
@@ -525,7 +529,13 @@ func (m tuiModel) View() string {
 							meds++
 						}
 					}
-					if crits > 0 {
+					if externalDrifts == 0 {
+						statusText = fmt.Sprintf("PLANNED (%d)", plannedChanges)
+						styleStatus = styles.drifted
+					} else if plannedChanges > 0 {
+						statusText = fmt.Sprintf("DRIFT:%d PLAN:%d", externalDrifts, plannedChanges)
+						styleStatus = styles.err
+					} else if crits > 0 {
 						statusText = fmt.Sprintf("DRIFTED (CRITICAL:%d)", crits)
 						styleStatus = styles.err
 					} else if highs > 0 {

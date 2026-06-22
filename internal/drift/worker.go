@@ -13,6 +13,7 @@ type ScanResult struct {
 
 type RunnerOptions struct {
 	Engine          ResolvedEngine
+	ScanMode        ScanMode
 	LockState       bool
 	ProfileOverride string
 	LocalProfile    bool

@@ -12,7 +12,7 @@ fork
 fork again
   :drift-new-resource;
   :terraform plan exits 2;
-  :Report DRIFTED;
+  :Report PLANNED;
 fork again
   :error-invalid-config;
   :terraform init or plan fails;

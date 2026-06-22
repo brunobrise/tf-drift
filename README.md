@@ -7,7 +7,7 @@
   <a href="https://opentofu.org"><img src="https://img.shields.io/badge/OpenTofu-FFDA18?style=for-the-badge" alt="OpenTofu"></a>
 </p>
 
-`tf-drift` is a Go utility to detect, filter, and inspect configuration drift across multi-layered Terraform and OpenTofu workspaces concurrently. It features an interactive, height-adaptive TUI and a non-interactive mode for CI/CD.
+`tf-drift` is a Go utility to detect, filter, and inspect external infrastructure drift and pending Terraform/OpenTofu plan changes across multi-layered workspaces concurrently. It features an interactive, height-adaptive TUI and a non-interactive mode for CI/CD.
 
 ## Installation
 
@@ -67,7 +67,7 @@ tf-drift -dir examples -non-interactive -include "clean-empty,drift-*" || true
 tf-drift -dir examples -non-interactive -exclude "error-*"
 ```
 
-See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers.
+See `examples/README.md` for the expected `CLEAN`, `PLANNED`, and `ERROR` layers.
 
 ## CLI Flags
 
@@ -80,6 +80,7 @@ See `examples/README.md` for the expected `CLEAN`, `DRIFTED`, and `ERROR` layers
 | `-exclude` | string | `""` | Comma-separated config suffix or glob patterns to exclude. |
 | `-concurrency` | int | `5` | Max concurrent plan execution workers. |
 | `-format` | string | `text` | Non-interactive output format (`text`, `json`, `markdown`, `slack`). |
+| `-mode` | string | `both` | Scan classification mode (`both`, `drift`, `plan`). `drift` reports only external drift from plan JSON `resource_drift`; `plan` reports only normal pending config changes from `resource_changes`; `both` reports both. |
 | `-lock` | bool | `false` | Enable state locking. |
 | `-rules` | string | `rules.json` | Path to rules configuration. |
 | `-non-interactive` | bool | `false` | Disable TUI mode. |
@@ -111,9 +112,11 @@ Selection filters run after `-dir`, `-env`, and `-layer`. Include filters run be
 
 ## Diagnostics & Exit Codes
 
-* **Exit Codes**: `0` (clean), `1` (failure), `2` (drift detected).
+* **Exit Codes**: `0` (clean), `1` (failure), `2` (external drift or pending plan change detected in the selected `-mode`).
 * **Logs**: Captured in `tf-drift.log` in TUI mode to prevent screen corruption, or printed to `Stderr` in non-interactive mode.
 * **Displayed paths**: Home-directory paths are shortened with `~` in the TUI and human-readable reports.
+
+`tf-drift` reads `terraform show -json` / `tofu show -json` output. External drift is classified from `resource_drift`; pending config changes are classified from `resource_changes`. If the same address appears in both lists, the external drift classification wins so drift remediation is not double-counted as an ordinary planned change.
 
 ## OpenTofu Notes
 

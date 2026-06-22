@@ -24,11 +24,12 @@ fork
       :Run '<engine> init';
     endif
     :Run '<engine> plan -detailed-exitcode -lock=false';
-    if (Detailed Exit Code == 2 (Drift)) then (yes)
+    if (Detailed Exit Code == 2 (Changes)) then (yes)
       :Run '<engine> show -json';
-      :Parse and Apply rules.json;
+      :Classify resource_drift vs resource_changes;
+      :Apply -mode and rules.json;
     endif
-    :Send Result to TUI Loop via p.Send();
+    :Send ScanResult to report path;
   endwhile
 fork again
   :Bubble Tea TUI Loop;

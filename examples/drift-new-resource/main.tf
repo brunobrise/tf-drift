@@ -4,6 +4,6 @@ terraform {
 
 resource "terraform_data" "example" {
   input = {
-    purpose = "produce a deterministic DRIFTED status for tf-drift examples"
+    purpose = "produce a deterministic PLANNED status for tf-drift examples"
   }
 }

@@ -77,8 +77,161 @@ func TestParsePlanJSON(t *testing.T) {
 		t.Errorf("Expected address aws_instance.web, got %s", change.Address)
 	}
 
+	if change.Classification != ChangeClassificationPlannedChange {
+		t.Errorf("Expected planned change classification, got %s", change.Classification)
+	}
+
 	if len(change.ChangedAttributes) != 1 || change.ChangedAttributes[0] != "instance_type" {
 		t.Errorf("Expected only instance_type to be changed, got %v", change.ChangedAttributes)
+	}
+}
+
+func TestParsePlanJSONResourceDrift(t *testing.T) {
+	planJSON := `{
+		"resource_drift": [
+			{
+				"address": "aws_instance.web",
+				"type": "aws_instance",
+				"name": "web",
+				"action_reason": "delete_because_no_resource_config",
+				"change": {
+					"actions": ["delete"],
+					"before": {"instance_type": "t3.micro"},
+					"after": null
+				}
+			},
+			{
+				"address": "data.aws_ami.latest",
+				"type": "aws_ami",
+				"name": "latest",
+				"change": {
+					"actions": ["read"]
+				}
+			}
+		]
+	}`
+
+	changes, err := parsePlanJSON([]byte(planJSON))
+	if err != nil {
+		t.Fatalf("Failed to parse plan JSON: %v", err)
+	}
+	if len(changes) != 1 {
+		t.Fatalf("Expected 1 drift change, got %d", len(changes))
+	}
+
+	change := changes[0]
+	if change.Classification != ChangeClassificationExternalDrift {
+		t.Errorf("Expected external drift classification, got %s", change.Classification)
+	}
+	if change.ActionReason != "delete_because_no_resource_config" {
+		t.Errorf("Expected action reason to be preserved, got %q", change.ActionReason)
+	}
+	if len(change.ChangedAttributes) != 1 || change.ChangedAttributes[0] != "instance_type" {
+		t.Errorf("Expected instance_type to be changed, got %v", change.ChangedAttributes)
+	}
+}
+
+func TestParsePlanJSONClassifiesBothAndFiltersModes(t *testing.T) {
+	planJSON := `{
+		"resource_drift": [
+			{
+				"address": "aws_instance.web",
+				"type": "aws_instance",
+				"name": "web",
+				"change": {
+					"actions": ["update"],
+					"before": {"instance_type": "t2.micro"},
+					"after": {"instance_type": "t3.micro"}
+				}
+			}
+		],
+		"resource_changes": [
+			{
+				"address": "aws_instance.web",
+				"type": "aws_instance",
+				"name": "web",
+				"change": {
+					"actions": ["update"],
+					"before": {"instance_type": "t3.micro"},
+					"after": {"instance_type": "t2.micro"}
+				}
+			},
+			{
+				"address": "terraform_data.pending",
+				"type": "terraform_data",
+				"name": "pending",
+				"change": {
+					"actions": ["create"],
+					"before": null,
+					"after": {"input": "expected"}
+				}
+			}
+		]
+	}`
+
+	tests := []struct {
+		name string
+		mode ScanMode
+		want []ChangeClassification
+	}{
+		{
+			name: "both",
+			mode: ScanModeBoth,
+			want: []ChangeClassification{ChangeClassificationExternalDrift, ChangeClassificationPlannedChange},
+		},
+		{
+			name: "drift",
+			mode: ScanModeDrift,
+			want: []ChangeClassification{ChangeClassificationExternalDrift},
+		},
+		{
+			name: "plan",
+			mode: ScanModePlan,
+			want: []ChangeClassification{ChangeClassificationPlannedChange},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			changes, err := parsePlanJSONForMode([]byte(planJSON), tt.mode)
+			if err != nil {
+				t.Fatalf("Failed to parse plan JSON: %v", err)
+			}
+			if len(changes) != len(tt.want) {
+				t.Fatalf("Expected %d changes, got %d: %#v", len(tt.want), len(changes), changes)
+			}
+			for i, want := range tt.want {
+				if changes[i].Classification != want {
+					t.Fatalf("Change %d classification: want %s, got %s", i, want, changes[i].Classification)
+				}
+			}
+		})
+	}
+}
+
+func TestParseScanMode(t *testing.T) {
+	tests := []struct {
+		input string
+		want  ScanMode
+	}{
+		{input: "", want: ScanModeBoth},
+		{input: "both", want: ScanModeBoth},
+		{input: "DRIFT", want: ScanModeDrift},
+		{input: " plan ", want: ScanModePlan},
+	}
+
+	for _, tt := range tests {
+		got, err := ParseScanMode(tt.input)
+		if err != nil {
+			t.Fatalf("ParseScanMode(%q) returned error: %v", tt.input, err)
+		}
+		if got != tt.want {
+			t.Fatalf("ParseScanMode(%q): want %s, got %s", tt.input, tt.want, got)
+		}
+	}
+
+	if _, err := ParseScanMode("bad"); err == nil {
+		t.Fatalf("Expected invalid scan mode error")
 	}
 }
 

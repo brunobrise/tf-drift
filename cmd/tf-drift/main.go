@@ -27,6 +27,7 @@ func main() {
 	excludeFlag := flag.String("exclude", "", "Comma-separated config suffix/glob patterns to exclude")
 	concurrencyFlag := flag.Int("concurrency", 5, "Max parallel workers")
 	formatFlag := flag.String("format", "text", "Non-interactive output format (text|json|markdown|slack)")
+	modeFlag := flag.String("mode", "both", "Scan classification mode (both|drift|plan)")
 	lockFlag := flag.Bool("lock", false, "Enable state locking")
 	rulesFlag := flag.String("rules", "rules.json", "Path to the rules configuration file")
 	nonInteractiveFlag := flag.Bool("non-interactive", false, "Force disable TUI")
@@ -44,6 +45,12 @@ func main() {
 	if versionFlag {
 		fmt.Printf("tf-drift %s\n", resolvedVersion())
 		os.Exit(0)
+	}
+
+	scanMode, err := drift.ParseScanMode(*modeFlag)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
 	}
 
 	// 1. Load Rules Config
@@ -137,6 +144,7 @@ func main() {
 	resultsChan := make(chan drift.ScanResult, len(layers))
 	options := drift.RunnerOptions{
 		Engine:          engine,
+		ScanMode:        scanMode,
 		LockState:       *lockFlag,
 		ProfileOverride: *profileOverrideFlag,
 		LocalProfile:    *localProfileFlag,

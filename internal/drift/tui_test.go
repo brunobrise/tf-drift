@@ -1,6 +1,8 @@
 package drift
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -327,5 +329,40 @@ func TestTUIMouseScrollAndPageAliases(t *testing.T) {
 	m = newModel.(tuiModel)
 	if m.cursor != 0 {
 		t.Errorf("Expected cursor to return to 0 on 'pageup' alias, got %d", m.cursor)
+	}
+}
+
+func TestTUIShowsPlannedStatusAndChangeFilter(t *testing.T) {
+	layers := []string{"clean", "pending", "failed"}
+	m := initialModelWithStyle(layers, RulesConfig{}, 2, false, ".", tuiStyleMinimal)
+	m.results["clean"] = ScanResult{Path: "clean"}
+	m.results["pending"] = ScanResult{
+		Path: "pending",
+		Drifts: []DriftChange{
+			{
+				Address:        "terraform_data.pending",
+				Actions:        []string{"create"},
+				Severity:       "LOW",
+				Classification: ChangeClassificationPlannedChange,
+			},
+		},
+	}
+	m.results["failed"] = ScanResult{Path: "failed", Err: errors.New("scan failed")}
+	m.processed = len(layers)
+
+	view := m.View()
+	if !strings.Contains(view, "PLANNED (1)") {
+		t.Fatalf("expected planned status in TUI view, got:\n%s", view)
+	}
+
+	newModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m = newModel.(tuiModel)
+	if m.filter != "CHANGES" {
+		t.Fatalf("expected first filter cycle to CHANGES, got %s", m.filter)
+	}
+
+	filtered := m.getFilteredLayers()
+	if len(filtered) != 1 || filtered[0] != "pending" {
+		t.Fatalf("expected CHANGES filter to show only pending layer, got %v", filtered)
 	}
 }

@@ -18,13 +18,15 @@ import (
 
 type PlanJSON struct {
 	ResourceChanges []ResourceChange `json:"resource_changes"`
+	ResourceDrift   []ResourceChange `json:"resource_drift"`
 }
 
 type ResourceChange struct {
-	Address string `json:"address"`
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	Change  Change `json:"change"`
+	Address      string `json:"address"`
+	Type         string `json:"type"`
+	Name         string `json:"name"`
+	Change       Change `json:"change"`
+	ActionReason string `json:"action_reason,omitempty"`
 }
 
 type Change struct {
@@ -34,12 +36,21 @@ type Change struct {
 }
 
 type DriftChange struct {
-	Address           string   `json:"address"`
-	Type              string   `json:"type"`
-	Actions           []string `json:"actions"`
-	ChangedAttributes []string `json:"changed_attributes"`
-	Severity          string   `json:"severity"`
+	Address           string               `json:"address"`
+	Type              string               `json:"type"`
+	Actions           []string             `json:"actions"`
+	ChangedAttributes []string             `json:"changed_attributes"`
+	Severity          string               `json:"severity"`
+	Classification    ChangeClassification `json:"classification"`
+	ActionReason      string               `json:"action_reason,omitempty"`
 }
+
+type ChangeClassification string
+
+const (
+	ChangeClassificationExternalDrift ChangeClassification = "EXTERNAL_DRIFT"
+	ChangeClassificationPlannedChange ChangeClassification = "PLANNED_CHANGE"
+)
 
 // getChangedAttributes compares two maps and returns sorted list of changed keys
 func getChangedAttributes(before, after map[string]interface{}) []string {
@@ -70,35 +81,60 @@ func getChangedAttributes(before, after map[string]interface{}) []string {
 
 // parsePlanJSON parses the JSON representation from terraform show
 func parsePlanJSON(data []byte) ([]DriftChange, error) {
+	return parsePlanJSONForMode(data, ScanModeBoth)
+}
+
+func parsePlanJSONForMode(data []byte, mode ScanMode) ([]DriftChange, error) {
 	var plan PlanJSON
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal plan JSON: %w", err)
 	}
 
 	var changes []DriftChange
-	for _, rc := range plan.ResourceChanges {
-		// If actions contains only "no-op" or "read", it's not a drift change
-		hasAction := false
-		for _, action := range rc.Change.Actions {
-			if action != "no-op" && action != "read" {
-				hasAction = true
-				break
-			}
-		}
-		if !hasAction {
+	driftAddresses := make(map[string]bool)
+
+	for _, rc := range plan.ResourceDrift {
+		if !hasManagedAction(rc.Change.Actions) {
 			continue
 		}
+		driftAddresses[rc.Address] = true
+		if mode.includes(ChangeClassificationExternalDrift) {
+			changes = append(changes, driftChangeFromResourceChange(rc, ChangeClassificationExternalDrift))
+		}
+	}
 
-		changedAttrs := getChangedAttributes(rc.Change.Before, rc.Change.After)
-
-		changes = append(changes, DriftChange{
-			Address:           rc.Address,
-			Type:              rc.Type,
-			Actions:           rc.Change.Actions,
-			ChangedAttributes: changedAttrs,
-		})
+	for _, rc := range plan.ResourceChanges {
+		if !hasManagedAction(rc.Change.Actions) {
+			continue
+		}
+		if driftAddresses[rc.Address] {
+			continue
+		}
+		if mode.includes(ChangeClassificationPlannedChange) {
+			changes = append(changes, driftChangeFromResourceChange(rc, ChangeClassificationPlannedChange))
+		}
 	}
 	return changes, nil
+}
+
+func hasManagedAction(actions []string) bool {
+	for _, action := range actions {
+		if action != "no-op" && action != "read" {
+			return true
+		}
+	}
+	return false
+}
+
+func driftChangeFromResourceChange(rc ResourceChange, classification ChangeClassification) DriftChange {
+	return DriftChange{
+		Address:           rc.Address,
+		Type:              rc.Type,
+		Actions:           rc.Change.Actions,
+		ChangedAttributes: getChangedAttributes(rc.Change.Before, rc.Change.After),
+		Classification:    classification,
+		ActionReason:      rc.ActionReason,
+	}
 }
 
 var (
@@ -223,7 +259,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, options Ru
 		}
 		showOutput := stdoutBuf.Bytes()
 
-		rawChanges, err := parsePlanJSON(showOutput)
+		rawChanges, err := parsePlanJSONForMode(showOutput, options.ScanMode)
 		if err != nil {
 			return nil, err
 		}
