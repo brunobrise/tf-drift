@@ -4,6 +4,15 @@ date: 2026-06-22
 
 # Documentation Index
 
+## Project
+
+| Document | Description |
+| --- | --- |
+| [Changelog](https://github.com/brunobrise/tf-drift/blob/main/CHANGELOG.md) | Tracks notable user-facing changes by release. |
+| [Roadmap](https://github.com/brunobrise/tf-drift/blob/main/ROADMAP.md) | Defines current focus, candidate work, and out-of-scope boundaries. |
+| [Contributing](https://github.com/brunobrise/tf-drift/blob/main/CONTRIBUTING.md) | Explains local development, test expectations, and contribution rules. |
+| [Security Policy](https://github.com/brunobrise/tf-drift/security/policy) | Explains supported versions and private vulnerability reporting. |
+
 ## Specs
 
 | Document | Description |
