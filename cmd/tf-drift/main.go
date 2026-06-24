@@ -26,7 +26,7 @@ func main() {
 	includeFlag := flag.String("include", "", "Comma-separated config suffix/glob patterns to include")
 	excludeFlag := flag.String("exclude", "", "Comma-separated config suffix/glob patterns to exclude")
 	concurrencyFlag := flag.Int("concurrency", 5, "Max parallel workers")
-	formatFlag := flag.String("format", "text", "Non-interactive output format (text|json|markdown|slack)")
+	formatFlag := flag.String("format", "text", "Non-interactive output format (text|json|markdown|slack|sarif)")
 	modeFlag := flag.String("mode", "both", "Scan classification mode (both|drift|plan)")
 	lockFlag := flag.Bool("lock", false, "Enable state locking")
 	rulesFlag := flag.String("rules", "rules.json", "Path to the rules configuration file")
