@@ -30,9 +30,10 @@ type ResourceChange struct {
 }
 
 type Change struct {
-	Actions []string               `json:"actions"`
-	Before  map[string]interface{} `json:"before"`
-	After   map[string]interface{} `json:"after"`
+	Actions      []string               `json:"actions"`
+	Before       map[string]interface{} `json:"before"`
+	After        map[string]interface{} `json:"after"`
+	AfterUnknown map[string]interface{} `json:"after_unknown"`
 }
 
 type DriftChange struct {
@@ -131,9 +132,55 @@ func driftChangeFromResourceChange(rc ResourceChange, classification ChangeClass
 		Address:           rc.Address,
 		Type:              rc.Type,
 		Actions:           rc.Change.Actions,
-		ChangedAttributes: getChangedAttributes(rc.Change.Before, rc.Change.After),
+		ChangedAttributes: changedAttributesFromChange(rc.Change),
 		Classification:    classification,
 		ActionReason:      rc.ActionReason,
+	}
+}
+
+func changedAttributesFromChange(change Change) []string {
+	return mergeChangedAttributes(getChangedAttributes(change.Before, change.After), change.AfterUnknown)
+}
+
+func mergeChangedAttributes(changed []string, afterUnknown map[string]interface{}) []string {
+	keys := make(map[string]bool)
+	for _, attr := range changed {
+		keys[attr] = true
+	}
+	for attr, value := range afterUnknown {
+		if hasUnknownValue(value) {
+			keys[attr] = true
+		}
+	}
+
+	merged := make([]string, 0, len(keys))
+	for attr := range keys {
+		merged = append(merged, attr)
+	}
+	sort.Strings(merged)
+	return merged
+}
+
+func hasUnknownValue(value interface{}) bool {
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case map[string]interface{}:
+		for _, nested := range typed {
+			if hasUnknownValue(nested) {
+				return true
+			}
+		}
+		return false
+	case []interface{}:
+		for _, nested := range typed {
+			if hasUnknownValue(nested) {
+				return true
+			}
+		}
+		return false
+	default:
+		return value != nil
 	}
 }
 
@@ -267,7 +314,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, options Ru
 		// Filter changes using rules.json
 		var filteredChanges []DriftChange
 		for _, change := range rawChanges {
-			ignored, severity := rules.EvaluateChange(layerDir, change.Type, change.ChangedAttributes)
+			ignored, severity := rules.EvaluateDriftChange(layerDir, change)
 			if !ignored {
 				change.Severity = severity
 				filteredChanges = append(filteredChanges, change)

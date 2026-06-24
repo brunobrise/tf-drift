@@ -289,6 +289,8 @@ func PrintNonInteractiveReport(results []ScanResult, format string) {
 		fmt.Println(formatMarkdown(results))
 	case "slack":
 		fmt.Println(formatSlack(results))
+	case "sarif":
+		fmt.Println(formatSARIF(results))
 	default:
 		fmt.Println(formatText(results))
 	}

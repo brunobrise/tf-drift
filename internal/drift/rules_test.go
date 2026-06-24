@@ -16,6 +16,18 @@ func TestParseRules(t *testing.T) {
 			"aws_security_group_rule": "CRITICAL",
 			"aws_rds_cluster": "HIGH"
 		},
+		"severity_rules": [
+			{
+				"name": "critical production IAM drift",
+				"severity": "CRITICAL",
+				"resource_types": ["aws_iam_policy"],
+				"attributes": ["policy"],
+				"actions": ["update"],
+				"classifications": ["EXTERNAL_DRIFT"],
+				"layer_patterns": ["*/prod/*"],
+				"address_patterns": ["aws_iam_policy.*"]
+			}
+		],
 		"layer_ignores": {
 			"aws/workload_api_dev/500_rds_dev": {
 				"attributes": ["database_name"]
@@ -35,6 +47,9 @@ func TestParseRules(t *testing.T) {
 
 	if rules.SeverityClassification["aws_iam_policy"] != "CRITICAL" {
 		t.Errorf("Expected aws_iam_policy severity to be CRITICAL")
+	}
+	if len(rules.SeverityRules) != 1 || rules.SeverityRules[0].Name != "critical production IAM drift" {
+		t.Fatalf("Expected one named severity rule, got %#v", rules.SeverityRules)
 	}
 }
 
@@ -83,5 +98,73 @@ func TestFilterDrift(t *testing.T) {
 	ignored, _ = rules.EvaluateChange("aws/workload_api_dev/500_rds_dev", "aws_rds_cluster", []string{"database_name"})
 	if !ignored {
 		t.Errorf("Expected database_name change on 500_rds_dev to be ignored")
+	}
+
+	ignored, sev = rules.EvaluateChange("aws/workload_api_dev/008_ssm_dev", "aws_instance", nil)
+	if ignored {
+		t.Errorf("Expected managed change with no known changed attributes not to be ignored")
+	}
+	if sev != "MEDIUM" {
+		t.Errorf("Expected default severity for unknown-only managed change, got %s", sev)
+	}
+}
+
+func TestSeverityRulePredicates(t *testing.T) {
+	rules := RulesConfig{
+		SeverityRules: []SeverityRule{
+			{
+				Name:            "critical production IAM drift",
+				Severity:        "CRITICAL",
+				ResourceTypes:   []string{"aws_iam_policy"},
+				Attributes:      []string{"policy"},
+				Actions:         []string{"update"},
+				Classifications: []ChangeClassification{ChangeClassificationExternalDrift},
+				LayerPatterns:   []string{"*/prod/*"},
+				AddressPatterns: []string{"aws_iam_policy.*"},
+			},
+			{
+				Name:            "route record change",
+				Severity:        "HIGH",
+				ResourceTypes:   []string{"aws_route53_record"},
+				Attributes:      []string{"records"},
+				AddressPatterns: []string{"module.dns.*"},
+			},
+		},
+	}
+
+	ignored, severity := rules.EvaluateDriftChange("/repo/infra/prod/network", DriftChange{
+		Address:           "aws_iam_policy.app",
+		Type:              "aws_iam_policy",
+		Actions:           []string{"update"},
+		ChangedAttributes: []string{"policy"},
+		Classification:    ChangeClassificationExternalDrift,
+	})
+	if ignored {
+		t.Fatalf("expected matching severity rule not to ignore the change")
+	}
+	if severity != "CRITICAL" {
+		t.Fatalf("expected CRITICAL severity, got %s", severity)
+	}
+
+	_, severity = rules.EvaluateDriftChange("/repo/infra/prod/network", DriftChange{
+		Address:           "aws_iam_policy.app",
+		Type:              "aws_iam_policy",
+		Actions:           []string{"update"},
+		ChangedAttributes: []string{"policy"},
+		Classification:    ChangeClassificationPlannedChange,
+	})
+	if severity != "MEDIUM" {
+		t.Fatalf("expected planned change to miss drift-only rule and fall back to MEDIUM, got %s", severity)
+	}
+
+	_, severity = rules.EvaluateDriftChange("/repo/infra/stage/dns", DriftChange{
+		Address:           "module.dns.aws_route53_record.app",
+		Type:              "aws_route53_record",
+		Actions:           []string{"update"},
+		ChangedAttributes: []string{"records"},
+		Classification:    ChangeClassificationPlannedChange,
+	})
+	if severity != "HIGH" {
+		t.Fatalf("expected address and attribute rule to set HIGH severity, got %s", severity)
 	}
 }
