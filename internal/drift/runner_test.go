@@ -1,6 +1,7 @@
 package drift
 
 import (
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -203,6 +204,71 @@ func TestParsePlanJSONClassifiesBothAndFiltersModes(t *testing.T) {
 			for i, want := range tt.want {
 				if changes[i].Classification != want {
 					t.Fatalf("Change %d classification: want %s, got %s", i, want, changes[i].Classification)
+				}
+			}
+		})
+	}
+}
+
+func TestParseOpenTofuPlanJSONFixtures(t *testing.T) {
+	tests := []struct {
+		name                string
+		fixture             string
+		wantClassifications []ChangeClassification
+		wantAddresses       []string
+	}{
+		{
+			name:                "resource drift with deposed object",
+			fixture:             "testdata/opentofu/resource_drift_deposed.json",
+			wantClassifications: []ChangeClassification{ChangeClassificationExternalDrift},
+			wantAddresses:       []string{"aws_instance.replaced"},
+		},
+		{
+			name:                "import and read edge cases",
+			fixture:             "testdata/opentofu/import_and_read_edges.json",
+			wantClassifications: []ChangeClassification{ChangeClassificationPlannedChange},
+			wantAddresses:       []string{"terraform_data.imported"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := os.ReadFile(tt.fixture)
+			if err != nil {
+				t.Fatalf("read fixture: %v", err)
+			}
+
+			changes, err := parsePlanJSON(data)
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if len(changes) != len(tt.wantClassifications) {
+				t.Fatalf("expected %d changes, got %d: %#v", len(tt.wantClassifications), len(changes), changes)
+			}
+			for i, want := range tt.wantClassifications {
+				if changes[i].Classification != want {
+					t.Fatalf("change %d classification: want %s, got %s", i, want, changes[i].Classification)
+				}
+				if changes[i].Address != tt.wantAddresses[i] {
+					t.Fatalf("change %d address: want %s, got %s", i, tt.wantAddresses[i], changes[i].Address)
+				}
+			}
+
+			switch tt.fixture {
+			case "testdata/opentofu/resource_drift_deposed.json":
+				if changes[0].ActionReason != "replace_because_cannot_update" {
+					t.Fatalf("expected OpenTofu action reason to be preserved, got %q", changes[0].ActionReason)
+				}
+				for _, attr := range []string{"ami", "id", "instance_type", "tags"} {
+					if !contains(changes[0].ChangedAttributes, attr) {
+						t.Fatalf("expected deposed drift changed attributes to include %s, got %#v", attr, changes[0].ChangedAttributes)
+					}
+				}
+			case "testdata/opentofu/import_and_read_edges.json":
+				for _, attr := range []string{"id", "input", "output"} {
+					if !contains(changes[0].ChangedAttributes, attr) {
+						t.Fatalf("expected import changed attributes to include %s, got %#v", attr, changes[0].ChangedAttributes)
+					}
 				}
 			}
 		})
