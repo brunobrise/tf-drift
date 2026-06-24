@@ -26,7 +26,7 @@
 * Separates external drift from ordinary pending plan changes.
 * Scans layered workspaces concurrently with include/exclude filters.
 * Runs as an interactive Bubble Tea TUI or CI-friendly non-interactive command.
-* Emits text, JSON, Markdown, and Slack-oriented reports.
+* Emits text, JSON, Markdown, Slack-oriented, and SARIF reports.
 
 ## Installation
 
@@ -81,6 +81,7 @@ The repository includes local Terraform examples for the main scan statuses:
 ```bash
 tf-drift -dir examples -non-interactive || true
 tf-drift -dir examples -non-interactive -format json || true
+tf-drift -dir examples -non-interactive -format sarif > tf-drift.sarif || true
 tf-drift -dir "examples/{clean-empty|drift-new-resource}" -non-interactive
 tf-drift -dir examples -non-interactive -include "clean-empty,drift-*" || true
 tf-drift -dir examples -non-interactive -exclude "error-*"
@@ -98,7 +99,7 @@ See `examples/README.md` for the expected `CLEAN`, `PLANNED`, and `ERROR` layers
 | `-include` | string | `""` | Comma-separated config suffix or glob patterns to include. |
 | `-exclude` | string | `""` | Comma-separated config suffix or glob patterns to exclude. |
 | `-concurrency` | int | `5` | Max concurrent plan execution workers. |
-| `-format` | string | `text` | Non-interactive output format (`text`, `json`, `markdown`, `slack`). |
+| `-format` | string | `text` | Non-interactive output format (`text`, `json`, `markdown`, `slack`, `sarif`). |
 | `-mode` | string | `both` | Scan classification mode (`both`, `drift`, `plan`). `drift` reports only external drift from plan JSON `resource_drift`; `plan` reports only normal pending config changes from `resource_changes`; `both` reports both. |
 | `-lock` | bool | `false` | Enable state locking. |
 | `-rules` | string | `rules.json` | Path to rules configuration. |
@@ -122,12 +123,48 @@ Selection filters run after `-dir`, `-env`, and `-layer`. Include filters run be
     "resource_types": ["aws_autoscaling_group"],
     "attributes": ["tags", "desired_capacity"]
   },
+  "severity_rules": [
+    {
+      "name": "critical production IAM drift",
+      "severity": "CRITICAL",
+      "resource_types": ["aws_iam_policy"],
+      "attributes": ["policy"],
+      "actions": ["update", "delete"],
+      "classifications": ["EXTERNAL_DRIFT"],
+      "layer_patterns": ["*/prod/*"],
+      "address_patterns": ["aws_iam_policy.*"]
+    }
+  ],
   "severity_classification": {
     "aws_iam_policy": "CRITICAL",
     "aws_rds_cluster": "HIGH"
   }
 }
 ```
+
+`severity_rules` are evaluated in order. Every configured predicate on a rule must match; the first match sets severity. If no rule matches, `severity_classification` keeps the existing resource-type behavior, then unmatched changes default to `MEDIUM`.
+
+## CI Annotations
+
+Use SARIF when CI should upload drift findings as code-scanning annotations:
+
+```bash
+tf-drift -dir "infra/{prod,stage}" -mode drift -non-interactive -format sarif > tf-drift.sarif
+```
+
+SARIF output uses `tf-drift.external-drift`, `tf-drift.planned-change`, and `tf-drift.execution-error` rule IDs. `CRITICAL` and `HIGH` changes map to SARIF `error`, `MEDIUM` to `warning`, and `LOW` to `note`.
+
+## Large Monorepos
+
+For large layered repositories, scan explicit directory sets and use selection filters to keep CI jobs owned and readable:
+
+```bash
+tf-drift -dir "infra/{prod,stage}/aws" -include "network,shared-*"
+tf-drift -dir "platform/accounts/*" -exclude "sandbox-*"
+tf-drift -dir "services/*/infra" -mode drift -format sarif
+```
+
+`-dir` resolves direct paths, glob patterns, and brace choices before layer discovery. `-include` and `-exclude` run after discovery and preserve discovery order, so teams can split monorepo checks by account, service, environment, or ownership group.
 
 ## Diagnostics & Exit Codes
 
@@ -150,6 +187,5 @@ Releases are built with GoReleaser and published to GitHub Releases and the Home
 * [Documentation](docs/index.md)
 * [Examples](examples/README.md)
 * [Changelog](CHANGELOG.md)
-* [Roadmap](ROADMAP.md)
 * [Security policy](SECURITY.md)
 * [Contributing guide](CONTRIBUTING.md)
