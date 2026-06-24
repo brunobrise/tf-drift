@@ -3,6 +3,7 @@
     "resource_types": [],
     "attributes": ["tags", "desired_capacity", "lifecycle"]
   },
+  "severity_rules": [],
   "severity_classification": {
     "aws_iam_policy": "CRITICAL",
     "aws_security_group_rule": "CRITICAL",

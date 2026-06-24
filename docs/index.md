@@ -4,6 +4,14 @@ date: 2026-06-22
 
 # Documentation Index
 
+## Project
+
+| Document | Description |
+| --- | --- |
+| [Changelog](https://github.com/brunobrise/tf-drift/blob/main/CHANGELOG.md) | Tracks notable user-facing changes by release. |
+| [Contributing](https://github.com/brunobrise/tf-drift/blob/main/CONTRIBUTING.md) | Explains local development, test expectations, and contribution rules. |
+| [Security Policy](https://github.com/brunobrise/tf-drift/security/policy) | Explains supported versions and private vulnerability reporting. |
+
 ## Specs
 
 | Document | Description |
@@ -19,6 +27,7 @@ date: 2026-06-22
 | Document | Description |
 | --- | --- |
 | [Config Selection Workflow](./stories/2026061720540700-config-selection.md) | Workflow story for narrowing detected configs before the worker pool runs. |
+| [CI Annotations and Rule Predicates Success](./stories/019ef057c4ac7943-ci-annotations-and-rule-predicates.md) | Success story for SARIF output, predicate-based severity rules, OpenTofu fixtures, and monorepo docs. |
 | [Drift Classification Success](./stories/019eed3e7df17cba-drift-classification.md) | Success story for separating external drift from normal pending Terraform/OpenTofu plan changes. |
 | [Example Status Fixtures Workflow](./stories/2026061720401300-examples-status-fixtures.md) | Workflow story for providerless examples that validate mixed-status reporting. |
 | [Home Path Display Success](./stories/0000019ee1c8ee3b-home-path-display.md) | Success story for shortening home-directory paths with `~` in human-facing output. |

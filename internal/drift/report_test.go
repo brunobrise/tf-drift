@@ -99,3 +99,98 @@ func TestReportJSONIncludesClassificationAndCounts(t *testing.T) {
 		t.Fatalf("expected planned classification in JSON, got %#v", decoded[0].Drifts)
 	}
 }
+
+func TestReportSARIFIncludesCIAnnotations(t *testing.T) {
+	results := []ScanResult{
+		{
+			Path: "prod/network",
+			Drifts: []DriftChange{
+				{
+					Address:           "aws_security_group_rule.ingress",
+					Type:              "aws_security_group_rule",
+					Actions:           []string{"update"},
+					ChangedAttributes: []string{"cidr_blocks"},
+					Severity:          "CRITICAL",
+					Classification:    ChangeClassificationExternalDrift,
+				},
+				{
+					Address:           "terraform_data.pending",
+					Type:              "terraform_data",
+					Actions:           []string{"create"},
+					ChangedAttributes: []string{"input"},
+					Severity:          "LOW",
+					Classification:    ChangeClassificationPlannedChange,
+				},
+			},
+		},
+		{
+			Path: "prod/database",
+			Err:  errString("tofu plan failed"),
+		},
+	}
+
+	output := formatSARIF(results)
+	var decoded struct {
+		Version string `json:"version"`
+		Runs    []struct {
+			Tool struct {
+				Driver struct {
+					Name  string `json:"name"`
+					Rules []struct {
+						ID string `json:"id"`
+					} `json:"rules"`
+				} `json:"driver"`
+			} `json:"tool"`
+			Results []struct {
+				RuleID    string                `json:"ruleId"`
+				Level     string                `json:"level"`
+				Message   struct{ Text string } `json:"message"`
+				Locations []struct {
+					PhysicalLocation struct {
+						ArtifactLocation struct {
+							URI string `json:"uri"`
+						} `json:"artifactLocation"`
+					} `json:"physicalLocation"`
+				} `json:"locations"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal([]byte(output), &decoded); err != nil {
+		t.Fatalf("expected valid SARIF JSON: %v\n%s", err, output)
+	}
+
+	if decoded.Version != "2.1.0" {
+		t.Fatalf("expected SARIF version 2.1.0, got %q", decoded.Version)
+	}
+	if len(decoded.Runs) != 1 || decoded.Runs[0].Tool.Driver.Name != "tf-drift" {
+		t.Fatalf("expected tf-drift SARIF driver, got %#v", decoded.Runs)
+	}
+	if len(decoded.Runs[0].Results) != 3 {
+		t.Fatalf("expected 3 SARIF results, got %d", len(decoded.Runs[0].Results))
+	}
+
+	got := map[string]string{}
+	for _, res := range decoded.Runs[0].Results {
+		got[res.RuleID] = res.Level + "|" + res.Locations[0].PhysicalLocation.ArtifactLocation.URI + "|" + res.Message.Text
+	}
+	for _, ruleID := range []string{"tf-drift.external-drift", "tf-drift.planned-change", "tf-drift.execution-error"} {
+		if _, ok := got[ruleID]; !ok {
+			t.Fatalf("expected SARIF result for %s, got %#v", ruleID, got)
+		}
+	}
+	if !strings.HasPrefix(got["tf-drift.external-drift"], "error|prod/network|") {
+		t.Fatalf("expected critical drift to map to error at prod/network, got %q", got["tf-drift.external-drift"])
+	}
+	if !strings.HasPrefix(got["tf-drift.planned-change"], "note|prod/network|") {
+		t.Fatalf("expected low planned change to map to note at prod/network, got %q", got["tf-drift.planned-change"])
+	}
+	if !strings.HasPrefix(got["tf-drift.execution-error"], "error|prod/database|") {
+		t.Fatalf("expected execution error annotation at prod/database, got %q", got["tf-drift.execution-error"])
+	}
+}
+
+type errString string
+
+func (e errString) Error() string {
+	return string(e)
+}
