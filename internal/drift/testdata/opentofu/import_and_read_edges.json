@@ -1,0 +1,57 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_drift": [
+    {
+      "address": "aws_s3_bucket.remote",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "remote",
+      "provider_name": "registry.opentofu.org/hashicorp/aws",
+      "change": {
+        "actions": ["read"],
+        "before": {
+          "bucket": "existing"
+        },
+        "after": {
+          "bucket": "existing"
+        }
+      }
+    }
+  ],
+  "resource_changes": [
+    {
+      "address": "terraform_data.imported",
+      "mode": "managed",
+      "type": "terraform_data",
+      "name": "imported",
+      "provider_name": "registry.opentofu.org/hashicorp/terraform",
+      "importing": {
+        "id": "imported-id"
+      },
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "input": "managed-by-code"
+        },
+        "after_unknown": {
+          "id": true,
+          "output": true
+        }
+      }
+    },
+    {
+      "address": "data.aws_caller_identity.current",
+      "mode": "data",
+      "type": "aws_caller_identity",
+      "name": "current",
+      "provider_name": "registry.opentofu.org/hashicorp/aws",
+      "change": {
+        "actions": ["read"],
+        "before": null,
+        "after": null
+      }
+    }
+  ]
+}

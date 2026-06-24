@@ -4,6 +4,10 @@ All notable user-facing changes are tracked here.
 
 ## Unreleased
 
+* Added SARIF output for CI annotations.
+* Added ordered `severity_rules` predicates for resource type, attribute, action, classification, layer, and address matching.
+* Added OpenTofu plan JSON edge-case fixtures.
+* Documented large monorepo scanning layouts.
 * Repository polish: README badges, screenshot, community metadata, and maintenance templates.
 
 ## v1.1.0 - 2026-06-20
