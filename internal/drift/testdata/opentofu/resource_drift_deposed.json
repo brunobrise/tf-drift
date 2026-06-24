@@ -1,0 +1,51 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_drift": [
+    {
+      "address": "aws_instance.replaced",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "replaced",
+      "provider_name": "registry.opentofu.org/hashicorp/aws",
+      "schema_version": 1,
+      "deposed": "deadbeef",
+      "action_reason": "replace_because_cannot_update",
+      "change": {
+        "actions": ["delete", "create"],
+        "before": {
+          "ami": "ami-1234567890",
+          "instance_type": "t3.micro",
+          "tags": {
+            "Name": "old"
+          }
+        },
+        "after": {
+          "ami": "ami-abcdef1234",
+          "instance_type": "t3.small",
+          "tags": {
+            "Name": "new"
+          }
+        },
+        "before_sensitive": {},
+        "after_sensitive": {},
+        "after_unknown": {
+          "id": true
+        }
+      }
+    },
+    {
+      "address": "data.aws_ami.latest",
+      "mode": "data",
+      "type": "aws_ami",
+      "name": "latest",
+      "provider_name": "registry.opentofu.org/hashicorp/aws",
+      "change": {
+        "actions": ["read"],
+        "before": null,
+        "after": null
+      }
+    }
+  ],
+  "resource_changes": []
+}
