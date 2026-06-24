@@ -267,7 +267,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, options Ru
 		// Filter changes using rules.json
 		var filteredChanges []DriftChange
 		for _, change := range rawChanges {
-			ignored, severity := rules.EvaluateChange(layerDir, change.Type, change.ChangedAttributes)
+			ignored, severity := rules.EvaluateDriftChange(layerDir, change)
 			if !ignored {
 				change.Severity = severity
 				filteredChanges = append(filteredChanges, change)
