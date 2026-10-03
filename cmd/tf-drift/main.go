@@ -218,11 +218,12 @@ func main() {
 				hasErrors = true
 			}
 			for _, d := range res.Drifts {
-				if d.Classification == drift.ChangeClassificationExternalDrift {
+				switch d.Classification {
+				case drift.ChangeClassificationExternalDrift:
 					if !d.Acknowledged {
 						hasNewDrifts = true
 					}
-				} else if d.Classification == drift.ChangeClassificationPlannedChange {
+				case drift.ChangeClassificationPlannedChange:
 					if !d.Acknowledged {
 						hasPlanned = true
 					}
