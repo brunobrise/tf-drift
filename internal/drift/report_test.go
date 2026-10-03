@@ -194,3 +194,56 @@ type errString string
 func (e errString) Error() string {
 	return string(e)
 }
+
+func TestReportMarkdownWithDiffsAndLock(t *testing.T) {
+	results := []ScanResult{
+		{
+			Path:   "infra/locked-layer",
+			Locked: true,
+		},
+		{
+			Path: "infra/drifted-layer",
+			Drifts: []DriftChange{
+				{
+					Address:        "aws_instance.app",
+					Type:           "aws_instance",
+					Classification: ChangeClassificationExternalDrift,
+					Severity:       "HIGH",
+					AttributeDiffs: []AttributeDiff{
+						{
+							Attribute: "instance_type",
+							Before:    "t2.micro",
+							After:     "t3.micro",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	output := formatMarkdown(results)
+	if !strings.Contains(output, "🔒 LOCKED") {
+		t.Errorf("expected markdown report to show 🔒 LOCKED")
+	}
+	if !strings.Contains(output, "`instance_type`: `\"t2.micro\"` -> `\"t3.micro\"`") {
+		t.Errorf("expected markdown report to show attribute diff before/after values, got:\n%s", output)
+	}
+}
+
+func TestReportSARIFWithLock(t *testing.T) {
+	results := []ScanResult{
+		{
+			Path:   "infra/locked-layer",
+			Locked: true,
+			Err:    errString("Error acquiring the state lock"),
+		},
+	}
+
+	sarifStr := formatSARIF(results)
+	if !strings.Contains(sarifStr, "tf-drift.state-locked") {
+		t.Errorf("expected SARIF output to contain tf-drift.state-locked rule")
+	}
+	if !strings.Contains(sarifStr, "State lock held for layer") {
+		t.Errorf("expected SARIF output to mention State lock held for layer")
+	}
+}

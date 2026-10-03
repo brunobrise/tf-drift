@@ -110,6 +110,10 @@ See `examples/README.md` for the expected `CLEAN`, `PLANNED`, and `ERROR` layers
 | `-engine` | string | `auto` | IaC engine to run (`auto`, `terraform`, `opentofu`, `tofu`). |
 | `-reconfigure` | bool | `false` | Run engine `init` with `-reconfigure`. |
 | `-migrate-state` | bool | `false` | Run engine `init` with `-migrate-state`. |
+| `-baseline` | string | `""` | Path to drift baseline JSON file to suppress acknowledged changes. |
+| `-update-baseline` | bool | `false` | Save current scan results as the accepted baseline JSON file. |
+| `-export-remediation` | string | `""` | Path to export executable remediation bash script. |
+| `-on-locked` | string | `fail` | Behavior when state lock is held (`fail`, `skip`). |
 | `-version` | bool | `false` | Print the embedded version and exit. |
 | `-v` | bool | `false` | Alias for `-version`. |
 
@@ -168,11 +172,18 @@ tf-drift -dir "services/*/infra" -mode drift -format sarif
 
 ## Diagnostics & Exit Codes
 
-* **Exit Codes**: `0` (clean), `1` (failure), `2` (external drift or pending plan change detected in the selected `-mode`).
+* **Exit Codes**:
+  * `0`: Clean (no drift, no planned changes, or all detected changes acknowledged via `-baseline`).
+  * `1`: Engine failure or runtime error.
+  * `2`: External drift detected.
+  * `3`: Pending plan changes only (under `-mode both` or `-mode plan`).
+  * `4`: Remote state lock held by another active process (when `-on-locked=fail`).
 * **Logs**: Captured in `tf-drift.log` in TUI mode to prevent screen corruption, or printed to `Stderr` in non-interactive mode.
 * **Displayed paths**: Home-directory paths are shortened with `~` in the TUI and human-readable reports.
+* **Baselines**: Pass `-baseline <file>` to suppress acknowledged drift from triggering non-zero exit codes. Use `-update-baseline` to snapshot current drift into the baseline file.
+* **Remediation**: Pass `-export-remediation <file>` to generate an executable bash script containing targeted `apply -target` and `apply -refresh-only` commands.
 
-`tf-drift` reads `terraform show -json` / `tofu show -json` output. External drift is classified from `resource_drift`; pending config changes are classified from `resource_changes`. If the same address appears in both lists, the external drift classification wins so drift remediation is not double-counted as an ordinary planned change.
+`tf-drift` reads `terraform show -json` / `tofu show -json` output. External drift is classified from `resource_drift`; pending config changes are classified from `resource_changes`. If the same address appears in both lists, the external drift classification wins so drift remediation is not double-counted as an ordinary planned change. Plan binaries are generated in an isolated temporary sandbox directory and automatically cleaned up to prevent workspace contamination.
 
 ## OpenTofu Notes
 

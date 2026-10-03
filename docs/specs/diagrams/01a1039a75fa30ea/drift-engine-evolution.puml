@@ -1,0 +1,36 @@
+@startuml drift-engine-evolution
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName sans-serif
+
+package "tf-drift Runtime Pipeline" {
+  [Discovery & Selection] as Discovery
+  [Secure Temp Sandbox] as Sandbox
+  [Parallel Plan Workers] as Workers
+  [State Lock Classifier] as LockCheck
+  [Rich Diff Parser] as DiffParser
+  [Baseline Evaluator] as Baseline
+  [Remediation Generator] as Remediation
+  [Reporting & TUI] as Reporting
+}
+
+database "Terraform / OpenTofu" as Engine
+file "drift-baseline.json" as BaselineFile
+file "remediation.sh" as RemediationFile
+
+Discovery -> Workers : Selected Layers
+Workers -> Sandbox : Isolated tmpdir for tfplan
+Sandbox -> Engine : <engine> plan -out=tmpdir/tfplan
+Engine -> LockCheck : Lock acquisition check
+LockCheck -> Workers : LOCKED vs ERROR vs SUCCESS
+
+Workers -> DiffParser : <engine> show -json tmpdir/tfplan
+DiffParser -> DiffParser : Preserve Before & After values
+DiffParser -> Baseline : Compare with baseline
+BaselineFile .-> Baseline : Load known drifts
+Baseline -> Remediation : New vs Baseline Drifts
+Remediation -> RemediationFile : Export targeted recipes
+Remediation -> Reporting : Rich Diff, Status, Exit Codes
+
+@enduml

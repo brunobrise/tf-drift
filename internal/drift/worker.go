@@ -9,6 +9,7 @@ type ScanResult struct {
 	Path   string
 	Drifts []DriftChange
 	Err    error
+	Locked bool
 }
 
 type RunnerOptions struct {
@@ -56,6 +57,7 @@ func ScanLayersWithRunner(
 					Path:   path,
 					Drifts: drifts,
 					Err:    err,
+					Locked: IsStateLockError(err),
 				}
 			}
 		}()

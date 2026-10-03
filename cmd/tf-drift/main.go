@@ -37,6 +37,10 @@ func main() {
 	engineFlag := flag.String("engine", "auto", "IaC engine to run (auto|terraform|opentofu|tofu)")
 	reconfigureFlag := flag.Bool("reconfigure", false, "Run engine init with -reconfigure flag")
 	migrateStateFlag := flag.Bool("migrate-state", false, "Run engine init with -migrate-state flag")
+	baselineFlag := flag.String("baseline", "", "Path to drift baseline JSON file")
+	updateBaselineFlag := flag.Bool("update-baseline", false, "Save detected drift to baseline JSON file")
+	exportRemediationFlag := flag.String("export-remediation", "", "Path to export remediation shell script")
+	onLockedFlag := flag.String("on-locked", "fail", "Behavior when state lock is held (fail|skip)")
 	versionFlag := false
 	registerVersionFlags(flag.CommandLine, &versionFlag)
 
@@ -59,6 +63,19 @@ func main() {
 	if rulesData, err := os.ReadFile(rulesPath); err == nil {
 		if err := json.Unmarshal(rulesData, &rules); err != nil {
 			fmt.Printf("Warning: Failed to parse rules config: %v. Using defaults.\n", err)
+		}
+	}
+
+	// 1b. Load Baseline if requested
+	var baseline *drift.BaselineFile
+	if *baselineFlag != "" {
+		loaded, err := drift.LoadBaseline(*baselineFlag)
+		if err != nil {
+			if !os.IsNotExist(err) && !*updateBaselineFlag {
+				fmt.Printf("Warning: Failed to load baseline from %s: %v\n", *baselineFlag, err)
+			}
+		} else {
+			baseline = loaded
 		}
 	}
 
@@ -162,24 +179,69 @@ func main() {
 			results = append(results, res)
 		}
 
+		if baseline != nil {
+			results = drift.ApplyBaseline(results, baseline)
+		}
+
+		if *updateBaselineFlag {
+			savePath := *baselineFlag
+			if savePath == "" {
+				savePath = "drift-baseline.json"
+			}
+			if err := drift.SaveBaseline(savePath, results); err != nil {
+				fmt.Printf("Warning: Failed to save baseline to %s: %v\n", savePath, err)
+			} else {
+				fmt.Printf("Baseline saved to %s\n", savePath)
+			}
+		}
+
+		if *exportRemediationFlag != "" {
+			if err := drift.ExportRemediationScript(*exportRemediationFlag, results, engine.Binary); err != nil {
+				fmt.Printf("Warning: Failed to export remediation script to %s: %v\n", *exportRemediationFlag, err)
+			} else {
+				fmt.Printf("Remediation script exported to %s\n", *exportRemediationFlag)
+			}
+		}
+
 		drift.PrintNonInteractiveReport(results, *formatFlag)
 
 		// Exit code logic for CI
 		hasErrors := false
-		hasDrifts := false
+		hasNewDrifts := false
+		hasPlanned := false
+		hasLocked := false
+
 		for _, res := range results {
-			if res.Err != nil {
+			if res.Locked {
+				hasLocked = true
+			} else if res.Err != nil {
 				hasErrors = true
-			} else if len(res.Drifts) > 0 {
-				hasDrifts = true
+			}
+			for _, d := range res.Drifts {
+				switch d.Classification {
+				case drift.ChangeClassificationExternalDrift:
+					if !d.Acknowledged {
+						hasNewDrifts = true
+					}
+				case drift.ChangeClassificationPlannedChange:
+					if !d.Acknowledged {
+						hasPlanned = true
+					}
+				}
 			}
 		}
 
 		if hasErrors {
 			os.Exit(1)
 		}
-		if hasDrifts {
+		if hasNewDrifts {
 			os.Exit(2)
+		}
+		if hasPlanned {
+			os.Exit(3)
+		}
+		if hasLocked && *onLockedFlag == "fail" {
+			os.Exit(4)
 		}
 		os.Exit(0)
 	}
@@ -198,6 +260,9 @@ func main() {
 			case res, ok := <-resultsChan:
 				if !ok {
 					return
+				}
+				if baseline != nil {
+					res = drift.ApplyBaseline([]drift.ScanResult{res}, baseline)[0]
 				}
 				p.Send(drift.LayerScanFinishedMsg{Result: res})
 			}

@@ -1,5 +1,5 @@
 ---
-date: 2026-06-22
+date: 2026-10-03
 ---
 
 # Documentation Index
@@ -21,6 +21,7 @@ date: 2026-06-22
 | [Scheduled Release Automation](./specs/019ed76d55fe0f64-scheduled-release-automation.md) | Defines daily release automation, SemVer tag selection, GoReleaser behavior, and release edge cases. |
 | [Terraform Config Selection](./specs/2026061720540700-config-selection.md) | Defines interactive checkbox selection and CLI include/exclude filters for discovered configs. |
 | [TUI Style System](./specs/019ee1b82f880df4-tui-style-system.md) | Defines selectable modern, classic, minimal, and accessible TUI styles for interactive views. |
+| [V2 Drift Engine Evolution](./specs/01a1039a75fa30ea-v2-drift-engine-evolution.md) | Defines runner sandbox isolation, state lock classification, rich diff preservation, baseline snapshots, and remediation recipes. |
 
 ## Stories
 
@@ -35,3 +36,4 @@ date: 2026-06-22
 | [Scheduled Release Automation Workflow](./stories/019ed76d55fe0f64-scheduled-release-automation.md) | Workflow story for daily release automation and the GitHub Actions failure modes it avoids. |
 | [TUI Style System Success](./stories/019ee1b82f880df4-tui-style-system.md) | Success story for centralizing TUI styling while preserving readable status labels and current controls. |
 | [Version Reporting Success](./stories/019ee1cb66012699-version-reporting.md) | Success story for consistent release and source-build version output through `-version` and `-v`. |
+| [V2 Drift Engine Evolution Success](./stories/01a1039a75fa30ea-v2-drift-engine-evolution.md) | Success story for plan isolation, lock detection, rich diffs, baselines, and remediation recipes. |

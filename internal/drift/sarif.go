@@ -72,6 +72,7 @@ func formatSARIF(results []ScanResult) string {
 							sarifRuleDefinition("tf-drift.external-drift", "External drift", "Terraform/OpenTofu plan JSON reported external infrastructure drift."),
 							sarifRuleDefinition("tf-drift.planned-change", "Planned change", "Terraform/OpenTofu plan JSON reported a pending configuration change."),
 							sarifRuleDefinition("tf-drift.execution-error", "Execution error", "Terraform/OpenTofu execution failed while scanning a layer."),
+							sarifRuleDefinition("tf-drift.state-locked", "State lock held", "Terraform/OpenTofu state lock is held by another active process."),
 						},
 					},
 				},
@@ -80,6 +81,17 @@ func formatSARIF(results []ScanResult) string {
 	}
 
 	for _, res := range results {
+		if res.Locked {
+			log.Runs[0].Results = append(log.Runs[0].Results, sarifResult{
+				RuleID:  "tf-drift.state-locked",
+				Level:   "warning",
+				Message: sarifTextMessage{Text: fmt.Sprintf("State lock held for layer %s: %v", res.Path, res.Err)},
+				Locations: []sarifLocation{
+					sarifLayerLocation(res.Path),
+				},
+			})
+			continue
+		}
 		if res.Err != nil {
 			log.Runs[0].Results = append(log.Runs[0].Results, sarifResult{
 				RuleID:  "tf-drift.execution-error",
