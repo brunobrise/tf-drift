@@ -111,7 +111,15 @@ func (m tuiModel) getDetailLines(layer string) []string {
 	}
 
 	var lines []string
-	if res.Err != nil {
+	if res.Locked {
+		lines = append(lines, "  🔒 State lock held by another process.")
+		if res.Err != nil {
+			errLines := strings.Split(res.Err.Error(), "\n")
+			for _, el := range errLines {
+				lines = append(lines, "  "+el)
+			}
+		}
+	} else if res.Err != nil {
 		errLines := strings.Split(res.Err.Error(), "\n")
 		for _, el := range errLines {
 			lines = append(lines, "  "+el)
@@ -134,7 +142,18 @@ func (m tuiModel) getDetailLines(layer string) []string {
 			lines = append(lines, fmt.Sprintf("  %d. [%s] %s (%s)",
 				i+1, drift.Classification, styles.accent.Render(drift.Address), severity))
 			lines = append(lines, fmt.Sprintf("     Actions: %v", drift.Actions))
-			lines = append(lines, fmt.Sprintf("     Changed attributes: %s", strings.Join(drift.ChangedAttributes, ", ")))
+			if len(drift.AttributeDiffs) > 0 {
+				lines = append(lines, "     Attribute Diffs:")
+				for _, diff := range drift.AttributeDiffs {
+					beforeVal := FormatAttributeValue(diff.Before)
+					afterVal := FormatAttributeValue(diff.After)
+					lines = append(lines, fmt.Sprintf("       • %s:", styles.accent.Render(diff.Attribute)))
+					lines = append(lines, fmt.Sprintf("         - %s", styles.err(beforeVal)))
+					lines = append(lines, fmt.Sprintf("         + %s", styles.clean(afterVal)))
+				}
+			} else if len(drift.ChangedAttributes) > 0 {
+				lines = append(lines, fmt.Sprintf("     Changed attributes: %s", strings.Join(drift.ChangedAttributes, ", ")))
+			}
 			if drift.ActionReason != "" {
 				lines = append(lines, fmt.Sprintf("     Reason: %s", drift.ActionReason))
 			}
@@ -510,7 +529,10 @@ func (m tuiModel) View() string {
 			var statusText string
 			var styleStatus func(string) string
 			if scanned {
-				if res.Err != nil {
+				if res.Locked {
+					statusText = "LOCKED"
+					styleStatus = styles.drifted
+				} else if res.Err != nil {
 					statusText = "ERROR"
 					styleStatus = styles.err
 				} else if len(res.Drifts) > 0 {

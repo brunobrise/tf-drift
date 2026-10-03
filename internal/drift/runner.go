@@ -41,9 +41,11 @@ type DriftChange struct {
 	Type              string               `json:"type"`
 	Actions           []string             `json:"actions"`
 	ChangedAttributes []string             `json:"changed_attributes"`
+	AttributeDiffs    []AttributeDiff      `json:"attribute_diffs,omitempty"`
 	Severity          string               `json:"severity"`
 	Classification    ChangeClassification `json:"classification"`
 	ActionReason      string               `json:"action_reason,omitempty"`
+	Acknowledged      bool                 `json:"acknowledged,omitempty"`
 }
 
 type ChangeClassification string
@@ -133,6 +135,7 @@ func driftChangeFromResourceChange(rc ResourceChange, classification ChangeClass
 		Type:              rc.Type,
 		Actions:           rc.Change.Actions,
 		ChangedAttributes: changedAttributesFromChange(rc.Change),
+		AttributeDiffs:    ExtractAttributeDiffs(rc.Change),
 		Classification:    classification,
 		ActionReason:      rc.ActionReason,
 	}
@@ -261,11 +264,16 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, options Ru
 	}
 
 	// 2. Run terraform plan
-	planFile := "tfplan"
-	planPath := filepath.Join(layerDir, planFile)
-	defer func() { _ = os.Remove(planPath) }()
+	tmpDir, err := os.MkdirTemp("", "tf-drift-plan-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary plan directory: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	args := []string{"plan", "-detailed-exitcode", "-out=" + planFile}
+	planFile := "tfplan"
+	planPath := filepath.Join(tmpDir, planFile)
+
+	args := []string{"plan", "-detailed-exitcode", "-out=" + planPath}
 	if !options.LockState {
 		args = append(args, "-lock=false")
 	}
@@ -292,7 +300,7 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, options Ru
 		return nil, nil
 	case 2:
 		// Drift detected. Run show -json to extract diff.
-		cmdShow := exec.CommandContext(ctx, engine.Binary, "show", "-json", planFile)
+		cmdShow := exec.CommandContext(ctx, engine.Binary, "show", "-json", planPath)
 		cmdShow.Dir = layerDir
 		if options.Automation {
 			cmdShow.Env = append(os.Environ(), "TF_IN_AUTOMATION=1")
@@ -323,8 +331,12 @@ func RunPlan(ctx context.Context, layerDir string, rules RulesConfig, options Ru
 
 		return filteredChanges, nil
 	default:
+		outStr := string(planOutput)
+		if isLockErrorOutput(outStr) {
+			return nil, &StateLockError{Layer: layerDir, Message: strings.TrimSpace(outStr)}
+		}
 		// Any other exit code is a genuine error
-		return nil, fmt.Errorf("%s plan failed (exit code %d): %s%s", engine.Binary, exitCode, string(planOutput), engineFailureHint(engine))
+		return nil, fmt.Errorf("%s plan failed (exit code %d): %s%s", engine.Binary, exitCode, outStr, engineFailureHint(engine))
 	}
 }
 

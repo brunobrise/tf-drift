@@ -85,6 +85,10 @@ func TestParsePlanJSON(t *testing.T) {
 	if len(change.ChangedAttributes) != 1 || change.ChangedAttributes[0] != "instance_type" {
 		t.Errorf("Expected only instance_type to be changed, got %v", change.ChangedAttributes)
 	}
+
+	if len(change.AttributeDiffs) != 1 || change.AttributeDiffs[0].Before != "t2.micro" || change.AttributeDiffs[0].After != "t3.micro" {
+		t.Errorf("Expected AttributeDiffs with t2.micro -> t3.micro, got %+v", change.AttributeDiffs)
+	}
 }
 
 func TestParsePlanJSONResourceDrift(t *testing.T) {
@@ -371,5 +375,62 @@ func TestModifyProviders(t *testing.T) {
 	}
 	if !strings.Contains(output4, "# assume_role {") {
 		t.Errorf("Expected assume_role block to be commented out even if no profile is found")
+	}
+}
+
+func TestIsLockErrorOutput(t *testing.T) {
+	cases := []struct {
+		name     string
+		output   string
+		expected bool
+	}{
+		{
+			name:     "terraform acquiring state lock",
+			output:   "Error: Error acquiring the state lock\nLock Info:\n  ID: 123",
+			expected: true,
+		},
+		{
+			name:     "opentofu state lock lowercase",
+			output:   "error: state lock held by process 456",
+			expected: true,
+		},
+		{
+			name:     "generic compile error",
+			output:   "Error: Reference to undeclared input variable",
+			expected: false,
+		},
+		{
+			name:     "empty output",
+			output:   "",
+			expected: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isLockErrorOutput(tc.output)
+			if got != tc.expected {
+				t.Errorf("isLockErrorOutput(%q) = %v; want %v", tc.output, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestStateLockError(t *testing.T) {
+	err := &StateLockError{
+		Layer:   "infra/prod",
+		Message: "Lock Info: ID: abc",
+	}
+
+	if !IsStateLockError(err) {
+		t.Errorf("IsStateLockError should return true for StateLockError")
+	}
+
+	if IsStateLockError(os.ErrNotExist) {
+		t.Errorf("IsStateLockError should return false for standard error")
+	}
+
+	if !strings.Contains(err.Error(), "infra/prod") {
+		t.Errorf("expected error string to contain layer path")
 	}
 }

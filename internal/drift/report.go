@@ -27,7 +27,9 @@ func formatMarkdownWithHome(results []ScanResult, home string) string {
 	for _, res := range results {
 		path := homePathForDisplay(res.Path, home)
 		externalDrifts, plannedChanges := changeCounts(res)
-		if res.Err != nil {
+		if res.Locked {
+			_, _ = fmt.Fprintf(&sb, "| `%s` | 🔒 LOCKED | State lock held by another process |\n", path)
+		} else if res.Err != nil {
 			errorLayersCount++
 			_, _ = fmt.Fprintf(&sb, "| `%s` | ❌ ERROR | %v |\n", path, res.Err)
 		} else if len(res.Drifts) > 0 {
@@ -46,7 +48,14 @@ func formatMarkdownWithHome(results []ScanResult, home string) string {
 			for _, d := range res.Drifts {
 				_, _ = fmt.Fprintf(&detailSB, "* **%s** [%s] (%s) — Actions: %v\n",
 					d.Address, d.Classification, d.Severity, d.Actions)
-				_, _ = fmt.Fprintf(&detailSB, "  * Changed attributes: `%s`\n", strings.Join(d.ChangedAttributes, "`, `"))
+				if len(d.AttributeDiffs) > 0 {
+					for _, diff := range d.AttributeDiffs {
+						_, _ = fmt.Fprintf(&detailSB, "  * `%s`: `%s` -> `%s`\n",
+							diff.Attribute, FormatAttributeValue(diff.Before), FormatAttributeValue(diff.After))
+					}
+				} else if len(d.ChangedAttributes) > 0 {
+					_, _ = fmt.Fprintf(&detailSB, "  * Changed attributes: `%s`\n", strings.Join(d.ChangedAttributes, "`, `"))
+				}
 			}
 			detailSB.WriteString("\n")
 		} else {
@@ -169,6 +178,10 @@ func formatTextWithHome(results []ScanResult, home string) string {
 			_, _ = fmt.Fprintf(&sb, "[%s] %s: %s detected\n", resultStatus(res), path, changeSummary(externalDrifts, plannedChanges))
 			for _, d := range res.Drifts {
 				_, _ = fmt.Fprintf(&sb, "  - [%s] %s (%s)\n", d.Classification, d.Address, d.Severity)
+				for _, diff := range d.AttributeDiffs {
+					_, _ = fmt.Fprintf(&sb, "      %s: %s -> %s\n",
+						diff.Attribute, FormatAttributeValue(diff.Before), FormatAttributeValue(diff.After))
+				}
 			}
 		} else {
 			_, _ = fmt.Fprintf(&sb, "[CLEAN]   %s\n", path)
@@ -183,6 +196,9 @@ func formatTextWithHome(results []ScanResult, home string) string {
 }
 
 func resultStatus(res ScanResult) string {
+	if res.Locked {
+		return "LOCKED"
+	}
 	if res.Err != nil {
 		return "ERROR"
 	}
@@ -250,6 +266,8 @@ func maxSeverity(changes []DriftChange) string {
 
 func markdownStatus(res ScanResult) string {
 	switch resultStatus(res) {
+	case "LOCKED":
+		return "🔒 LOCKED"
 	case "DRIFTED_AND_PLANNED":
 		return "🔴 DRIFTED + 🟡 PLANNED"
 	case "DRIFTED":
@@ -263,6 +281,8 @@ func markdownStatus(res ScanResult) string {
 
 func slackStatusIcon(res ScanResult) string {
 	switch resultStatus(res) {
+	case "LOCKED":
+		return ":lock:"
 	case "DRIFTED", "DRIFTED_AND_PLANNED":
 		return ":red_circle:"
 	case "PLANNED":
